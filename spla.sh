@@ -62,6 +62,11 @@ get_script_dir() {
     dirname "$script_path"
 }
 
+# Gets the username of the current user
+get_current_user() {
+    echo "$USER"
+}
+
 # STYLING FUNCTIONS
 #==============================================================================
 
@@ -162,13 +167,21 @@ show_info() {
 # Shows a log message - for less critical info
 # Usage: show_log "Connecting to database"
 show_log () {
-    styled bright_black "▫️ $1"
+    styled bright_black "▪️ $1"
 }
 
 # Shows a suggestion message - for tips or suggestions
 # Usage: show_suggestion "Consider using --verbose for more details"
 show_suggestion () {
     styled yellow "💡 $1"
+}
+
+# Shows a key: value pair message
+# Usage: show_keyvalue "name" "John Doe"
+show_keyvalue () {
+    local key="$1"
+    local value="$2"
+    echo -e "▫️ $(style cyan) $key${NC}: $value"
 }
 
 # Shows a question with optional answer options
@@ -178,19 +191,28 @@ show_question () {
     local question="$1"
     local options="$2"
     if is_not_empty "$options"; then
-        styled blue "❔ $question ($options)"
+        styled bold bright_blue "❔ $question ($options)"
     else
-        styled blue "❔ $question"
+        styled bold bright_blue "❔ $question"
     fi
 }
 
-# UI BANNERS
-#==============================================================================
-
 # Shows an attention banner - for bringing attention to very important notices
-# Usage: banner_attention
+# Usage: banner_attention <message>
+# Parameters:
+#   message: Optional custom message to display instead of default "ATTENTION"
 banner_attention() {
-    styled reverse bright_yellow "\n ! ATTENTION ! \n"
+    local message="${1:-ATTENTION}"
+    styled reverse bright_yellow "\n ! $message ! \n"
+}
+
+# Shows a completed banner - for indicating completion of a process
+# Usage: banner_completed <message>
+# Parameters:
+#   message: Optional custom message to display instead of default "COMPLETED"
+banner_completed() {
+    local message="${1:-COMPLETED}"
+    styled reverse bright_green "\n ✔  $message ✔  \n"
 }
 
 # USER INTERACTIONS
@@ -271,15 +293,15 @@ prompt_menu() {
     local options=("$@")
     # Menu display
     {
-        echo
-        show_question "$prompt"
-        
+        show_question "$prompt" >&2
+        local menu_line=""
         local i=1
         for option in "${options[@]}"; do
-            echo "   $i) $option"
+            menu_line+="$(style bright_black)[${NC}$(style cyan) $i${NC}: $option $(style bright_black)]${NC}  "
             ((i++))
         done
-    } >&2
+        echo -e "   $menu_line" >&2
+    }
     # Capture user input
     local choice
     while true; do
@@ -1221,63 +1243,60 @@ assert_is_less_than_or_equal() {
     fi
 }
 
-# WORKFLOW
+# FLOW
 #==============================================================================
 
-# Executes a workflow using an associative array of steps
-# Usage: flow_run workflow_steps
+# Executes a flow using an associative array of steps
+# Usage: flow_run flow_steps
 # Parameters:
-#   workflow_steps: Name of associative array where keys are function names 
-#                  and values are step descriptions
+#   flow_steps: Name of associative array where keys are function names 
+#               and values are step descriptions
 # Example:
-#   declare -A my_workflow=(
+#   declare -A my_flow=(
 #       [askSudo]="Request sudo privileges"
 #       [updateSystem]="Update system packages"
 #       [installApps]="Install applications"
 #   )
-#   flow_run my_workflow
+#   flow_run my_flow
 flow_run(){
     clear
     echo
-    show_info "Starting workflow execution"
-    # This function expects an associative array passed by reference
-    local -n workflow_ref=$1
-    local total_steps=${#workflow_ref[@]}
-    local step_num=0
-    for step_function in "${!workflow_ref[@]}"; do
-        local step_description="${workflow_ref[$step_function]}"
+    show_info "Starting flow execution"
+    local -n flow_ref=$1
+    local total_steps=${#flow_ref[@]}
+    local step_num=1
+    for step_function in "${!flow_ref[@]}"; do
+        local step_description="${flow_ref[$step_function]}"
         local title="STEP: $step_description"
         show_header "[$step_num/$total_steps] $title"
         local selected=$(prompt_menu "Please select an option:" "Continue" "Skip" "Quit")
         case $selected in
             "Continue")
-                show_info "Executing $title"
+                show_log "Executing $title"
                 echo
                 if "$step_function"; then
-                    show_success "Step '$step_description' completed successfully"
                     echo
+                    show_success "Step '$step_description' completed successfully"
                 else
+                    echo
                     show_error "Step '$step_description' failed with exit code $?"
-                    show_warning "Workflow execution stopped due to error"
+                    show_warning "Flow execution stopped due to error"
                     exit 1
                 fi
                 ;;
             "Skip")
                 show_info "Skipping $title"
-                echo
                 ;;
             "Quit")
                 echo
-                show_warning "Aborting the script execution"
+                show_warning "Aborting the flow execution"
                 echo
                 exit 0
                 ;;
         esac
         ((step_num++))
     done
-    echo
-    show_success "Workflow execution completed"
-    echo
+    banner_completed "Flow execution completed"
     exit 0
 }
 
