@@ -824,6 +824,3 @@ Luciano Soares - [GitHub Repository](https://github.com/soaresluciano/splash)
 ## TODO
 
 - find a better way to load the lib
-- Find a way to make the params more sytatical, like $SUDO instead of $TRUE, or $CONFIRM ...
-- add are_equal, are_not_equal, is_greater ....
-- remove the sudo examples

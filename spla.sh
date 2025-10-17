@@ -63,20 +63,6 @@ NC='\033[0m'
 # UTILS
 #==============================================================================
 
-# Checks if a string is empty
-# Usage: if is_empty "$variable"; then ... fi
-# Returns TRUE if string is empty, FALSE if it has content
-is_empty() {
-    [ -z "$1" ]
-}
-
-# Checks if a string is not empty
-# Usage: if is_not_empty "$variable"; then ... fi
-# Returns TRUE if string is not empty, FALSE if it is empty
-is_not_empty() {
-    [ -n "$1" ]
-}
-
 # Gets the directory of the script that sourced this library
 # When this library is sourced from another script, returns the directory of that calling script
 # Usage: script_dir=$(get_script_dir)
@@ -262,6 +248,9 @@ prompt_yesno() {
     [[ $reply =~ ^[Yy]$ ]]
 }
 
+# Prompts user to proceed with an operation
+# Returns TRUE if user wants to proceed, FALSE otherwise
+# Usage: if prompt_proceed "This will delete all files"; then ... fi
 prompt_proceed() {
     local description="$1"
     warning "$description"
@@ -329,9 +318,6 @@ prompt_menu() {
 # Usage: owner=$(file_get_owner "myfile.txt")
 # Parameters:
 #   filename: Path to the file to check
-# Example:
-#   owner=$(file_get_owner "/etc/passwd")
-#   echo "File owner: $owner"  # Output: "File owner: root"
 file_get_owner() {
     local filename="$1"
     file_exists "$filename" || {
@@ -346,13 +332,6 @@ file_get_owner() {
 # Usage: perms=$(file_get_permissions "myfile.txt")
 # Parameters:
 #   filename: Path to the file to check
-# Examples:
-#   perms=$(file_get_permissions "script.sh")
-#   echo "Permissions: $perms"  # Output: "Permissions: 755"
-#   
-#   if [ "$(file_get_permissions "config.txt")" = "600" ]; then
-#       echo "File has secure permissions"
-#   fi
 file_get_permissions() {
     local filename="$1"
     file_exists "$filename" || {
@@ -364,10 +343,10 @@ file_get_permissions() {
 
 # Checks if a file or directory exists
 # Returns TRUE if path exists, FALSE if it doesn't
-# Usage: if path_exists "/my/path"; then ... fi
+# Usage: if path_exists "/my/path" [-no-log]; then ... fi
 # Parameters:
 #   path: Path to check
-#   log: Show error log - Optional boolean (TRUE/FALSE), defaults to TRUE
+#   --no-log: Suppress error logging - Optional boolean flag
 path_exists() {
     _parse_common_params "$@"
     local path="${_PARSED_ARGS[0]}"
@@ -380,10 +359,10 @@ path_exists() {
 
 # Checks if a file or directory is readable
 # Returns TRUE if file is readable, FALSE if it isn't
-# Usage: if path_is_readable "myfile.txt"; then ... fi
+# Usage: if path_is_readable "myfile.txt" [--no-log]; then ... fi
 # Parameters:
 #   path: Path to check
-#   log: Show error log - Optional boolean (TRUE/FALSE), defaults to TRUE
+#   --no-log: Suppress error logging - Optional boolean flag
 path_is_readable() {
     _parse_common_params "$@"
     local path="${_PARSED_ARGS[0]}"
@@ -396,10 +375,10 @@ path_is_readable() {
 
 # Checks if a file exists and is writable
 # Returns TRUE if file exists and is writable, FALSE if it isn't
-# Usage: if path_is_writable "myfile.txt"; then ... fi
+# Usage: if path_is_writable "myfile.txt" [--no-log]; then ... fi
 # Parameters:
 #   path: Path to the file to check
-#   log: Show error log - Optional boolean (TRUE/FALSE), defaults to TRUE
+#   --no-log: Suppress error logging - Optional boolean flag
 path_is_writable() {
     _parse_common_params "$@"
     local path="${_PARSED_ARGS[0]}"
@@ -412,10 +391,10 @@ path_is_writable() {
 
 # Checks if a file exists
 # Returns TRUE if file exists, FALSE if it doesn't
-# Usage: if file_exists "myfile.txt"; then ... fi
+# Usage: if file_exists "myfile.txt" [--no-log]; then ... fi
 # Parameters:
 #   filename: Path to the file to check
-#   log: Show error log - Optional boolean (TRUE/FALSE), defaults to TRUE
+#   --no-log: Suppress error logging - Optional boolean flag
 file_exists() {
     _parse_common_params "$@"
     local filename="${_PARSED_ARGS[0]}"
@@ -428,10 +407,10 @@ file_exists() {
 
 # Checks if a directory exists
 # Returns TRUE if directory exists, FALSE if it doesn't
-# Usage: if dir_exists "/my/directory"; then ... fi
+# Usage: if dir_exists "/my/directory" [--no-log]; then ... fi
 # Parameters:
 #   dir: Path to the directory to check
-#   log: Show error log - Optional boolean (TRUE/FALSE), defaults to TRUE
+#   --no-log: Suppress error logging - Optional boolean flag
 dir_exists() {
     _parse_common_params "$@"
     local dir="${_PARSED_ARGS[0]}"
@@ -444,11 +423,11 @@ dir_exists() {
 
 # Checks if a directory exists and is readable
 # Returns TRUE if directory exists and is readable, FALSE if it isn't
-# Usage: if dir_is_readable "/my/directory" --sudo --no-log; then ... fi
+# Usage: if dir_is_readable "/my/directory" [--sudo] [--no-log]; then ... fi
 # Parameters:
 #   dir: Path to the directory to check
-#   --sudo: Use sudo for checks (only verifies directory exists)
-#   --no-log: Suppress error logging
+#   --sudo: Use sudo for checks (only verifies directory exists) - Optional boolean flag
+#   --no-log: Suppress error logging - Optional boolean flag
 dir_is_readable() {
     _parse_common_params "$@"
     local dir="${_PARSED_ARGS[0]}"
@@ -461,11 +440,11 @@ dir_is_readable() {
 
 # Checks if a directory exists and is writable
 # Returns TRUE if directory exists and is writable, FALSE if it isn't
-# Usage: if dir_is_writable "/my/directory" --sudo --ask; then ... fi
+# Usage: if dir_is_writable "/my/directory" [--sudo] [--no-log]; then ... fi
 # Parameters:
 #   dir: Path to the directory to check
-#   --sudo: Use sudo for checks (only verifies directory exists)
-#   --no-log: Suppress error logging
+#   --sudo: Use sudo for checks (only verifies directory exists) - Optional boolean flag
+#   --no-log: Suppress error logging - Optional boolean flag
 dir_is_writable() {
     _parse_common_params "$@"
     local dir="${_PARSED_ARGS[0]}"
@@ -478,11 +457,11 @@ dir_is_writable() {
 
 # Checks if a file exists and is readable
 # Returns TRUE if file exists and is readable, FALSE if it isn't
-# Usage: if file_is_readable "myfile.txt" --sudo --no-log; then ... fi
+# Usage: if file_is_readable "myfile.txt" [--sudo] [--no-log]; then ... fi
 # Parameters:
 #   filename: Path to the file to check
-#   --sudo: Use sudo for checks (only verifies file exists)
-#   --no-log: Suppress error logging
+#   --sudo: Use sudo for checks (only verifies file exists) - Optional boolean flag
+#   --no-log: Suppress error logging - Optional boolean flag
 file_is_readable() {
     _parse_common_params "$@"
     local filename="${_PARSED_ARGS[0]}"
@@ -495,11 +474,11 @@ file_is_readable() {
 
 # Checks if a file exists and is writable
 # Returns TRUE if file exists and is writable, FALSE if it isn't
-# Usage: if file_is_writable "myfile.txt" --ask --sudo; then ... fi
+# Usage: if file_is_writable "myfile.txt" [--sudo] [--no-log]; then ... fi
 # Parameters:
 #   filename: Path to the file to check
-#   --sudo: Use sudo for checks (only verifies file exists)
-#   --no-log: Suppress error logging
+#   --sudo: Use sudo for checks (only verifies file exists) - Optional boolean flag
+#   --no-log: Suppress error logging - Optional boolean flag
 file_is_writable() {
     _parse_common_params "$@"
     local filename="${_PARSED_ARGS[0]}"
@@ -511,16 +490,16 @@ file_is_writable() {
 }
 
 # Creates the directory path for a given file or directory if it doesn't exist
-# Usage: path_create "/path/to/myfile.txt" [use_sudo]
-# Usage: path_create "/path/to/mydirectory" [use_sudo]
+# Usage: path_create "/path/to/myfile.txt" [--sudo]
+# Usage: path_create "/path/to/mydirectory" [--sudo]
 # Parameters:
-#   filepath: Full path to the file or directory whose parent directory path should be created
-#   use_sudo: Optional boolean (TRUE/FALSE), defaults to FALSE
+#   path: Full path to the file or directory whose parent directory path should be created
+#   --sudo: Use sudo for directory creation - Optional boolean flag
 path_create() {
     _parse_common_params "$@"
-    local filepath="${_PARSED_ARGS[0]}"
+    local path="${_PARSED_ARGS[0]}"
     local dir
-    dir=$(dirname "$filepath")
+    dir=$(dirname "$path")
     if ! dir_exists "$dir" --no-log; then
         ${_SUDO_CMD}mkdir -p "$dir"
         show_success "Directory path '$dir' created."
@@ -528,11 +507,10 @@ path_create() {
 }
 
 # Clears the contents of a file (truncates to zero bytes)
-# Usage: file_clear <filename> [use_sudo]
-# Usage: file_clear_sudo <filename>
+# Usage: file_clear <filename> [--sudo]
 # Parameters:
 #   filename: Path to the file to clear
-#   use_sudo: Optional boolean (TRUE/FALSE), defaults to FALSE
+#   --sudo: Use sudo for the file operation - Optional boolean flag
 file_clear() {
     _parse_common_params "$@"
     local filename="${_PARSED_ARGS[0]}"
@@ -544,12 +522,11 @@ file_clear() {
 }
 
 # Appends a string to the end of a file
-# Usage: file_str_append <filename> <content> [use_sudo]
-# Usage: file_str_append_sudo <filename> <content>
+# Usage: file_str_append <filename> <content> [--sudo]
 # Parameters:
 #   filename: Path to the file to append to
 #   content: String content to append
-#   use_sudo: Optional boolean (TRUE/FALSE), defaults to FALSE
+#   --sudo: Use sudo for the file operation - Optional boolean flag
 file_str_append() {
     _parse_common_params "$@"
     local filename="${_PARSED_ARGS[0]}"
@@ -568,7 +545,7 @@ file_str_append() {
 # Parameters:
 #   filename: Path to the file to modify
 #   pairs: Array of strings in format "search/replace" (slash-separated)
-#   --sudo: Use sudo for file operations - Optional boolean flag
+#   --sudo: Use sudo for the file operations - Optional boolean flag
 # Examples:
 #   file_str_replace "config.txt" "old_value/new_value" "debug=true/debug=false"
 #   file_str_replace "system.conf" "localhost/production.server" "port=3000/port=8080"
@@ -589,20 +566,17 @@ file_str_replace() {
 
 # Creates a backup copy of a file with .original extension
 # Only creates backup if the original file exists
-# Usage: file_backup <filename> [use_sudo]
-# Usage: file_backup_sudo <filename>
+# Usage: file_backup <filename> [--sudo]
 # Parameters:
 #   filename: Path to the file to backup
-#   use_sudo: Optional boolean (TRUE/FALSE), defaults to FALSE
+#   --sudo: Use sudo for the file operation - Optional boolean flag
 file_backup () {
     _parse_common_params "$@"
     local filename="${_PARSED_ARGS[0]}"
-    # TODO: how to override _build_args specifically for this call?
     _build_args file_exists "$filename" --no-log || {
         show_log "Nothing to backup. The file '$filename' does not exist."
         return
     }
-    # How about after the override? What happens with the original values?
     local suffix="bkp-$(date +%Y%m%d%H%M%S)"
     local backup_file="$filename.$suffix"
     ${_SUDO_CMD}cp "$filename" "$backup_file"
@@ -610,13 +584,12 @@ file_backup () {
 }
 
 # Overwrites the entire content of a file with specified content
-# Usage: file_content_write <filename> <content> [use_sudo]
-# Usage: file_content_write <filename> <content>
+# Usage: file_content_write <filename> <content> [--sudo] [--no-log]
 # Parameters:
 #   filename: Path to the file to overwrite
 #   content: String content to write to the file
-#   use_sudo: Optional boolean (TRUE/FALSE), defaults to FALSE
-#   log_success: Optional boolean (TRUE/FALSE), defaults to TRUE
+#   --sudo: Use sudo for the file operation - Optional boolean flag
+#   --no-log: Suppress success logging - Optional boolean flag
 file_content_write () {
     _parse_common_params "$@"
     local filename="${_PARSED_ARGS[0]}"
@@ -626,21 +599,16 @@ file_content_write () {
         return
     }
     echo "$content" | ${_SUDO_CMD}tee "$filename" >/dev/null
-    _log_is_on show_success "The content was written to $filename."
+    _log_is_on && show_success "The content was written to $filename."
 }
 
 # Creates a file with specified content or creates an empty file if no content provided
 # Prompts for overwrite and backup confirmation if the file already exists
-# Usage: file_create_with_content <filename> [content] [use_sudo]
-# Usage: file_create_with_content_sudo <filename> [content]
+# Usage: file_create_with_content <filename> [content] [--sudo]
 # Parameters:
 #   filename: Path to the file to create
 #   content: Optional string content to write to the file. If omitted, creates an empty file
-#   use_sudo: Optional boolean (TRUE/FALSE), defaults to FALSE
-# Examples:
-#   file_create_with_content "config.txt" "debug=true"
-#   file_create_with_content "empty.txt"
-#   file_create_with_content "/etc/myapp.conf" "server=localhost" $TRUE
+#   --sudo: Use sudo for the file operation - Optional boolean flag
 file_create_with_content () {
     _parse_common_params "$@"
     local filename="${_PARSED_ARGS[0]}"
@@ -659,24 +627,22 @@ file_create_with_content () {
 
 # Creates an empty file at the specified path
 # Prompts for overwrite confirmation if the file already exists
-# Usage: file_create_empty <filename> [use_sudo]
+# Usage: file_create_empty <filename> [--sudo]
 # Parameters:
 #   filename: Path to the file to create
-#   use_sudo: Optional boolean (TRUE/FALSE), defaults to FALSE
+#   --sudo: Use sudo for the file operation - Optional boolean flag
 # Examples:
-#   file_create_empty "config.txt"
-#   file_create_empty "/etc/myapp.conf" $TRUE
+#   file_create_empty "/etc/myapp.conf" --sudo
 file_create_empty() {
     _build_args file_create_with_content "$1" ""
 }
 
 # Copies a template file to a destination, removing existing destination first
-# Usage: file_from_template <template> <destination> [use_sudo]
-# Usage: file_from_template_sudo <template> <destination>
+# Usage: file_from_template <template> <destination> [--sudo]
 # Parameters:
 #   template: Path to the source template file
 #   destination: Path where the template should be copied
-#   use_sudo: Optional boolean (TRUE/FALSE), defaults to FALSE
+#   --sudo: Use sudo for the file operation - Optional boolean flag
 file_from_template () {
     _parse_common_params "$@"
     local template="${_PARSED_ARGS[0]}"
@@ -690,11 +656,10 @@ file_from_template () {
 }
 
 # Makes a file executable by adding execute permissions
-# Usage: file_make_executable <filename> [use_sudo]
-# Usage: file_make_executable_sudo <filename>
+# Usage: file_make_executable <filename> [--sudo]
 # Parameters:
 #   filename: Path to the file to make executable
-#   use_sudo: Optional boolean (TRUE/FALSE), defaults to FALSE
+#   --sudo: Use sudo for the file operation - Optional boolean flag
 file_make_executable() {
     _parse_common_params "$@"
     local filename="${_PARSED_ARGS[0]}"
@@ -707,12 +672,11 @@ file_make_executable() {
 }
 
 # Copies a file to a destination, creating the destination path if needed
-# Usage: file_copy <source_file> <dest_file> [use_sudo]
-# Usage: file_copy_sudo <source_file> <dest_file>
+# Usage: file_copy <source_file> <dest_file> [--sudo]
 # Parameters:
 #   source_file: Path to the source file to copy
 #   dest_file: Path to the destination file
-#   use_sudo: Optional boolean (TRUE/FALSE), defaults to FALSE
+#   --sudo: Use sudo for the file operation - Optional boolean flag
 file_copy() {
     _parse_common_params "$@"
     local source_file="${_PARSED_ARGS[0]}"
@@ -727,12 +691,11 @@ file_copy() {
 }
 
 # Moves a file to a destination, creating the destination path if needed
-# Usage: file_move <source_file> <dest_file> [use_sudo]
-# Usage: file_move_sudo <source_file> <dest_file>
+# Usage: file_move <source_file> <dest_file> [--sudo]
 # Parameters:
 #   source_file: Path to the source file to move
 #   dest_file: Path to the destination file
-#   use_sudo: Optional boolean (TRUE/FALSE), defaults to FALSE
+#   --sudo: Use sudo for the file operation - Optional boolean flag
 file_move() {
     _parse_common_params "$@"
     local source_file="${_PARSED_ARGS[0]}"
@@ -748,12 +711,11 @@ file_move() {
 
 # Overwrites a file by copying a source file to a destination, creating the destination path if needed
 # Prompts for overwrite confirmation if the destination file already exists
-# Usage: file_overwrite <source_file> <dest_file> [use_sudo]
-# Usage: file_overwrite_sudo <source_file> <dest_file>
+# Usage: file_overwrite <source_file> <dest_file> [--sudo]
 # Parameters:
 #   source_file: Path to the source file to copy
 #   dest_file: Path to the destination file
-#   use_sudo: Optional boolean (TRUE/FALSE), defaults to FALSE 
+#   --sudo: Use sudo for the file operation - Optional boolean flag
 file_overwrite() {
     _parse_common_params "$@"
     local source_file="${_PARSED_ARGS[0]}"
@@ -769,14 +731,11 @@ file_overwrite() {
 
 # Deletes a file from the filesystem
 # Only attempts deletion if the file exists
-# Usage: file_delete <filename> [use_sudo]
+# Usage: file_delete <filename> [--sudo] [--ask]
 # Parameters:
 #   filename: Path to the file to delete
-#   ask_confirmation: Prompt for confirmation before deletion - Optional boolean (TRUE/FALSE), defaults to FALSE
-#   use_sudo: Optional boolean (TRUE/FALSE), defaults to FALSE
-# Examples:
-#   file_delete "temp.txt"
-#   file_delete "/var/log/app.log" $TRUE
+#   --ask: Prompt for confirmation before deletion -Optional boolean flag
+#   --sudo: Use sudo for the file operation - Optional boolean flag
 file_delete() {
     _parse_common_params "$@"
     local filename="${_PARSED_ARGS[0]}"
@@ -797,14 +756,11 @@ file_delete() {
 # Recursively deletes a directory and all its contents
 # Only attempts deletion if the directory exists
 # WARNING: This operation is irreversible and will delete all subdirectories and files
-# Usage: dir_delete_recursive <directory> [use_sudo]
+# Usage: dir_delete_recursive <directory> [--sudo] [--ask]
 # Parameters:
 #   dir: Path to the directory to delete
-#   ask_confirmation: Prompt for confirmation before deletion - Optional boolean (TRUE/FALSE), defaults to FALSE
-#   use_sudo: Optional boolean (TRUE/FALSE), defaults to FALSE
-# Examples:
-#   dir_delete_recursive "temp_folder"
-#   dir_delete_recursive "/var/cache/myapp" $TRUE
+#   --ask: Prompt for confirmation before deletion - Optional boolean flag
+#   --sudo: Use sudo for the file operation - Optional boolean flag
 dir_delete_recursive() {
     _parse_common_params "$@"
     local dir="${_PARSED_ARGS[0]}"
@@ -824,8 +780,6 @@ dir_delete_recursive() {
 
 # SYSTEM OPERATIONS
 #==============================================================================
-
-# System utility functions
 
 # Requests and validates sudo permissions with user feedback
 # Usage: sudoing
@@ -952,7 +906,14 @@ system_display_server() {
 }
 
 # VALIDATIONS
+#==============================================================================
 
+# Validates a single item with a description, validation command, and optional fix suggestion
+# Usage: validate_item "Git installation" "command_exists git" "Install Git using your package manager"
+# Parameters:
+#   description: Description of the item being validated
+#   validation_command: Command to validate the item (should return TRUE/FALSE)
+#   fix_suggestion: Optional suggestion on how to fix the issue if validation fails
 validate_item() {
     local description="$1"
     local validation_command="$2"
@@ -972,6 +933,10 @@ validate_item() {
     fi
 }
 
+# Validates multiple dependencies and exits if any are missing
+# Usage: validate_dependencies "git" "curl" "wget"
+# Parameters:
+#   required_dependencies: Array of command names to validate
 validate_dependencies() {
     local required_dependencies=("$@")
     local missing_dependencies=()
@@ -1001,11 +966,11 @@ validate_dependencies() {
 
 # Downloads a file from a URL to a specified destination
 # Uses curl or wget if available
-# Usage: download_file <url> <destination> [use_sudo]
+# Usage: download_file <url> <destination> [--use_sudo]
 # Parameters:
 #   url: URL of the file to download
 #   dest: Path where the file should be saved
-#   use_sudo: Optional boolean (TRUE/FALSE), defaults to FALSE
+#   --use_sudo: Use sudo for the download operation - Optional boolean flag
 download_file() {
     _parse_common_params "$@"
     local url="${_PARSED_ARGS[0]}"
@@ -1020,6 +985,262 @@ download_file() {
         return 1
     fi
     show_success "File downloaded to $dest"
+}
+
+# COMPARISONS AND CHECKS
+#==============================================================================
+
+# Checks if a string is empty
+# Usage: if is_empty "$variable"; then ... fi
+# Returns TRUE if string is empty, FALSE if it has content
+is_empty() {
+    [ -z "$1" ]
+}
+
+# Checks if a string is not empty
+# Usage: if is_not_empty "$variable"; then ... fi
+# Returns TRUE if string is not empty, FALSE if it is empty
+is_not_empty() {
+    [ -n "$1" ]
+}
+
+# Compares two strings for exact equality
+# Performs case-sensitive string comparison
+# Returns TRUE if strings are identical, FALSE otherwise
+# Usage: if are_equal_str "hello" "hello"; then ... fi
+# Parameters:
+#   string1: First string to compare
+#   string2: Second string to compare
+are_equal_str() {
+    [ "$1" == "$2" ]
+}
+
+# Compares two strings for equality ignoring case differences
+# Converts both strings to lowercase before comparison
+# Returns TRUE if strings are equal (case-insensitive), FALSE otherwise
+# Usage: if are_equal_str_ignore_case "Hello" "HELLO"; then ... fi
+# Parameters:
+#   string1: First string to compare
+#   string2: Second string to compare
+are_equal_str_ignore_case() {
+    [[ "${1,,}" == "${2,,}" ]]
+}
+
+# Compares two numbers for arithmetic equality
+# Treats both parameters as integers and performs numeric comparison
+# Returns TRUE if numbers are mathematically equal, FALSE otherwise
+# Will error if either parameter is not a valid integer
+# Usage: if are_equal_num "10" "10"; then ... fi
+# Parameters:
+#   number1: First number to compare (must be a valid integer)
+#   number2: Second number to compare (must be a valid integer)
+are_equal_num() {
+    [ "$1" -eq "$2" ]
+}
+
+# Checks if the first number is arithmetically greater than the second
+# Treats both parameters as integers and performs numeric comparison
+# Returns TRUE if first number > second number, FALSE otherwise
+# Will error if either parameter is not a valid integer
+# Usage: if is_greater_than "15" "10"; then ... fi
+# Parameters:
+#   number1: First number to compare (must be a valid integer)
+#   number2: Second number to compare (must be a valid integer)
+is_greater_than() {
+    [ "$1" -gt "$2" ]
+}
+
+# Checks if the first number is arithmetically greater than or equal to the second
+# Treats both parameters as integers and performs numeric comparison
+# Returns TRUE if first number >= second number, FALSE otherwise
+# Will error if either parameter is not a valid integer
+# Usage: if is_greater_than_or_equal "10" "10"; then ... fi
+# Parameters:
+#   number1: First number to compare (must be a valid integer)
+#   number2: Second number to compare (must be a valid integer)
+is_greater_than_or_equal() {
+    [ "$1" -ge "$2" ]
+}
+
+# Checks if the first number is arithmetically less than the second
+# Treats both parameters as integers and performs numeric comparison
+# Returns TRUE if first number < second number, FALSE otherwise
+# Will error if either parameter is not a valid integer
+# Usage: if is_less_than "5" "10"; then ... fi
+# Parameters:
+#   number1: First number to compare (must be a valid integer)
+#   number2: Second number to compare (must be a valid integer)
+is_less_than() {
+    [ "$1" -lt "$2" ]
+}
+
+# Checks if the first number is arithmetically less than or equal to the second
+# Treats both parameters as integers and performs numeric comparison
+# Returns TRUE if first number <= second number, FALSE otherwise
+# Will error if either parameter is not a valid integer
+# Usage: if is_less_than_or_equal "10" "15"; then ... fi
+# Parameters:
+#   number1: First number to compare (must be a valid integer)
+#   number2: Second number to compare (must be a valid integer)
+is_less_than_or_equal() {
+    [ "$1" -le "$2" ]
+}
+
+# ASSERTIONS
+#===============================================================================
+
+# Asserts that a value is empty and displays an error message if not
+# Uses is_not_empty internally to check if value has content
+# Displays error message using show_error if assertion fails
+# Usage: assert_is_empty "$variable" "Custom error message"
+# Parameters:
+#   value: The value to check for emptiness
+#   error_message: Optional custom error message (defaults to generic assertion message)
+assert_is_empty() {
+    local value="$1"
+    local error_message="${2:-Assertion failed: Expected empty value, but got non-empty.}"
+    if is_not_empty "$value"; then
+        show_error "$error_message"
+    fi
+}
+
+# Asserts that a value is not empty and displays an error message if it is
+# Uses is_empty internally to check if value is empty
+# Displays error message using show_error if assertion fails
+# Usage: assert_is_not_empty "$variable" "Custom error message"
+# Parameters:
+#   value: The value to check for content
+#   error_message: Optional custom error message (defaults to generic assertion message)
+assert_is_not_empty() {
+    local value="$1"
+    local error_message="${2:-Assertion failed: Expected non-empty value, but got empty.}"
+    if is_empty "$value"; then
+        show_error "$error_message"
+    fi
+}
+
+# Asserts that two strings are equal (case-sensitive) and displays an error message if not
+# Uses are_equal_str internally for comparison
+# Displays error message using show_error if assertion fails
+# Usage: assert_are_equal_str "expected" "actual" "Custom error message"
+# Parameters:
+#   str1: First string to compare
+#   str2: Second string to compare
+#   error_message: Optional custom error message (defaults to showing both values)
+assert_are_equal_str() {
+    local str1="$1"
+    local str2="$2"
+    local error_message="${3:-Assertion failed: Expected '$str1' to equal '$str2'.}"
+    if ! are_equal_str "$str1" "$str2"; then
+        show_error "$error_message"
+    fi
+}
+
+# Asserts that two strings are equal ignoring case and displays an error message if not
+# Uses are_equal_str_ignore_case internally for comparison
+# Displays error message using show_error if assertion fails
+# Usage: assert_are_equal_str_ignore_case "Expected" "actual" "Custom error message"
+# Parameters:
+#   str1: First string to compare
+#   str2: Second string to compare
+#   error_message: Optional custom error message (defaults to showing both values)
+assert_are_equal_str_ignore_case() {
+    local str1="$1"
+    local str2="$2"
+    local error_message="${3:-Assertion failed: Expected '$str1' to equal '$str2' (case-insensitive).}"
+    if ! are_equal_str_ignore_case "$str1" "$str2"; then
+        show_error "$error_message"
+    fi
+}
+
+# Asserts that two numbers are arithmetically equal and displays an error message if not
+# Uses are_equal_num internally for numeric comparison
+# Displays error message using show_error if assertion fails
+# Will error if either parameter is not a valid integer
+# Usage: assert_are_equal_num "10" "10" "Custom error message"
+# Parameters:
+#   num1: First number to compare (must be a valid integer)
+#   num2: Second number to compare (must be a valid integer)
+#   error_message: Optional custom error message (defaults to showing both values)
+assert_are_equal_num() {
+    local num1="$1"
+    local num2="$2"
+    local error_message="${3:-Assertion failed: Expected '$num1' to equal '$num2'.}"
+    if ! are_equal_num "$num1" "$num2"; then
+        show_error "$error_message"
+    fi
+}
+
+# Asserts that first number is greater than second and displays an error message if not
+# Uses is_greater_than internally for numeric comparison
+# Displays error message using show_error if assertion fails
+# Will error if either parameter is not a valid integer
+# Usage: assert_is_greater_than "15" "10" "Custom error message"
+# Parameters:
+#   num1: First number to compare (must be a valid integer)
+#   num2: Second number to compare (must be a valid integer)
+#   error_message: Optional custom error message (defaults to showing both values)
+assert_is_greater_than() {
+    local num1="$1"
+    local num2="$2"
+    local error_message="${3:-Assertion failed: Expected '$num1' to be greater than '$num2'.}"
+    if ! is_greater_than "$num1" "$num2"; then
+        show_error "$error_message"
+    fi
+}
+
+# Asserts that first number is greater than or equal to second and displays an error message if not
+# Uses is_greater_than_or_equal internally for numeric comparison
+# Displays error message using show_error if assertion fails
+# Will error if either parameter is not a valid integer
+# Usage: assert_is_greater_than_or_equal "10" "10" "Custom error message"
+# Parameters:
+#   num1: First number to compare (must be a valid integer)
+#   num2: Second number to compare (must be a valid integer)
+#   error_message: Optional custom error message (defaults to showing both values)
+assert_is_greater_than_or_equal() {
+    local num1="$1"
+    local num2="$2"
+    local error_message="${3:-Assertion failed: Expected '$num1' to be greater than or equal to '$num2'.}"
+    if ! is_greater_than_or_equal "$num1" "$num2"; then
+        show_error "$error_message"
+    fi
+}
+
+# Asserts that first number is less than second and displays an error message if not
+# Uses is_less_than internally for numeric comparison
+# Displays error message using show_error if assertion fails
+# Will error if either parameter is not a valid integer
+# Usage: assert_is_less_than "5" "10" "Custom error message"
+# Parameters:
+#   num1: First number to compare (must be a valid integer)
+#   num2: Second number to compare (must be a valid integer)
+#   error_message: Optional custom error message (defaults to showing both values)
+assert_is_less_than() {
+    local num1="$1"
+    local num2="$2"
+    local error_message="${3:-Assertion failed: Expected '$num1' to be less than '$num2'.}"
+    if ! is_less_than "$num1" "$num2"; then
+        show_error "$error_message"
+    fi
+}
+
+# Asserts that first number is less than or equal to second and displays an error message if not
+# Uses is_less_than_or_equal internally for numeric comparison
+# Displays error message using show_error if assertion fails
+# Will error if either parameter is not a valid integer
+# Usage: assert_is_less_than_or_equal "10" "15" "Custom error message"
+# Parameters:
+#   num1: First number to compare (must be a valid integer)
+#   num2: Second number to compare (must be a valid integer)
+#   error_message: Optional custom error message (defaults to showing both values)
+assert_is_less_than_or_equal() {
+    local num1="$1"
+    local num2="$2"
+    local error_message="${3:-Assertion failed: Expected '$num1' to be less than or equal to '$num2'.}"
+    if ! is_less_than_or_equal "$num1" "$num2"; then
+        show_error "$error_message"
+    fi
 }
 
 # WORKFLOW
@@ -1122,26 +1343,35 @@ _cleanup_temp_dir() {
 # INTERNAL
 #==============================================================================
 
+# Core parameter parsing logic - modifies global state and collects non-flag arguments
+# Used by both _parse_common_params and _build_args
+_parse_flags_and_args() {
+    local -n args_ref=$1
+    shift
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --sudo) _USE_SUDO=$TRUE; shift ;;
+            --no-sudo) _USE_SUDO=$FALSE; shift ;;
+            --log) _USE_LOG=$TRUE; shift ;;
+            --no-log) _USE_LOG=$FALSE; shift ;;
+            --ask) _USE_ASK=$TRUE; shift ;;
+            --no-ask) _USE_ASK=$FALSE; shift ;;
+            *) args_ref+=("$1"); shift ;;
+        esac
+    done
+}
+
 # Common parameter parsing logic - returns parsed values via global variables
 # This is internal and resets state each time to avoid bugs
 _parse_common_params() {
-    # Reset state every time to avoid bugs
     _USE_SUDO=$FALSE
     _USE_LOG=$TRUE
     _USE_ASK=$FALSE
     _PARSED_ARGS=()
     _SUDO_CMD=""
-    
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --sudo) _USE_SUDO=$TRUE; shift ;;
-            --no-log) _USE_LOG=$FALSE; shift ;;
-            --ask) _USE_ASK=$TRUE; shift ;;
-            *) _PARSED_ARGS+=("$1"); shift ;;
-        esac
-    done
-    
-    # Set sudo command based on parsed flag
+
+    _parse_flags_and_args _PARSED_ARGS "$@"
     _SUDO_CMD=${_USE_SUDO:+sudo }
 }
 
@@ -1149,14 +1379,32 @@ _parse_common_params() {
 _build_args() {
     local target_function="$1"
     shift
-    local args=("$@")
     
-    # Add conditional flags based on parsed state
+    # Save current state
+    local saved_sudo=$_USE_SUDO
+    local saved_log=$_USE_LOG
+    local saved_ask=$_USE_ASK
+    
+    # Parse override flags and collect function arguments
+    local args=()
+    _parse_flags_and_args args "$@"
+    
+    # Add conditional flags based on current state (including overrides)
     [ "$_USE_LOG" -eq $FALSE ] && args+=(--no-log)
     [ "$_USE_SUDO" -eq $TRUE ] && args+=(--sudo)
     [ "$_USE_ASK" -eq $TRUE ] && args+=(--ask)
 
+    # Call the function
+    local result
     "$target_function" "${args[@]}"
+    result=$?
+    
+    # Restore original state
+    _USE_SUDO=$saved_sudo
+    _USE_LOG=$saved_log
+    _USE_ASK=$saved_ask
+    
+    return $result
 }
 
 # Returns TRUE if sudo is enabled, FALSE otherwise
