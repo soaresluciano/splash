@@ -251,7 +251,7 @@ prompt_question() {
 # Usage: if prompt_yesno "Continue?"; then ... fi
 prompt_yesno() {
     local question="$1"
-    local reply=$(prompt_question "$question" "y/N" 1 2>/dev/null)
+    local reply=$(prompt_question "$question" "y/N" 1)
     echo
     [[ $reply =~ ^[Yy]$ ]]
 }
@@ -922,11 +922,11 @@ system_display_server() {
 validate_item() {
     local description="$1"
     local validation_command="$2"
-    local fix_suggestion="$3"
+    local fix_suggestion="${3:-}"
     
-    echo -n "🔍 Checking $description... "
+    echo -n "🔍 Checking $description..."
 
-    if eval "$validation_command" &>/dev/null; then
+    if are_equal_str "$validation_command" "0" || eval "$validation_command" &>/dev/null; then
         show_success "OK"
         return 0
     else
@@ -1090,71 +1090,62 @@ is_less_than_or_equal() {
 #===============================================================================
 
 # Asserts that a value is empty and displays an error message if not
-# Uses is_not_empty internally to check if value has content
 # Displays error message using show_error if assertion fails
 # Usage: assert_is_empty "$variable" "Custom error message"
 # Parameters:
 #   value: The value to check for emptiness
 #   error_message: Optional custom error message (defaults to generic assertion message)
+# Returns: TRUE if value is empty, FALSE and shows error if not
 assert_is_empty() {
     local value="$1"
     local error_message="${2:-Assertion failed: Expected empty value, but got non-empty.}"
-    if is_not_empty "$value"; then
-        show_error "$error_message"
-    fi
+    is_empty "$value" && return $TRUE || { show_error "$error_message"; return $FALSE; }
 }
 
 # Asserts that a value is not empty and displays an error message if it is
-# Uses is_empty internally to check if value is empty
 # Displays error message using show_error if assertion fails
 # Usage: assert_is_not_empty "$variable" "Custom error message"
 # Parameters:
 #   value: The value to check for content
 #   error_message: Optional custom error message (defaults to generic assertion message)
+# Returns: TRUE if value is not empty, FALSE and shows error if empty
 assert_is_not_empty() {
     local value="$1"
     local error_message="${2:-Assertion failed: Expected non-empty value, but got empty.}"
-    if is_empty "$value"; then
-        show_error "$error_message"
-    fi
+    is_not_empty "$value" && return $TRUE || { show_error "$error_message"; return $FALSE; }
 }
 
 # Asserts that two strings are equal (case-sensitive) and displays an error message if not
-# Uses are_equal_str internally for comparison
 # Displays error message using show_error if assertion fails
 # Usage: assert_are_equal_str "expected" "actual" "Custom error message"
 # Parameters:
 #   str1: First string to compare
 #   str2: Second string to compare
 #   error_message: Optional custom error message (defaults to showing both values)
+# Returns: TRUE if strings are equal, FALSE and shows error if not
 assert_are_equal_str() {
     local str1="$1"
     local str2="$2"
     local error_message="${3:-Assertion failed: Expected '$str1' to equal '$str2'.}"
-    if ! are_equal_str "$str1" "$str2"; then
-        show_error "$error_message"
-    fi
+    are_equal_str "$str1" "$str2" && return $TRUE || { show_error "$error_message"; return $FALSE; }
 }
 
 # Asserts that two strings are equal ignoring case and displays an error message if not
-# Uses are_equal_str_ignore_case internally for comparison
 # Displays error message using show_error if assertion fails
 # Usage: assert_are_equal_str_ignore_case "Expected" "actual" "Custom error message"
 # Parameters:
 #   str1: First string to compare
 #   str2: Second string to compare
 #   error_message: Optional custom error message (defaults to showing both values)
+# Returns: TRUE if strings are equal (case-insensitive), FALSE and shows error if not
 assert_are_equal_str_ignore_case() {
     local str1="$1"
     local str2="$2"
     local error_message="${3:-Assertion failed: Expected '$str1' to equal '$str2' (case-insensitive).}"
-    if ! are_equal_str_ignore_case "$str1" "$str2"; then
-        show_error "$error_message"
-    fi
+    are_equal_str_ignore_case "$str1" "$str2" && return $TRUE || { show_error "$error_message"; return $FALSE; }
 }
 
 # Asserts that two numbers are arithmetically equal and displays an error message if not
-# Uses are_equal_num internally for numeric comparison
 # Displays error message using show_error if assertion fails
 # Will error if either parameter is not a valid integer
 # Usage: assert_are_equal_num "10" "10" "Custom error message"
@@ -1162,17 +1153,15 @@ assert_are_equal_str_ignore_case() {
 #   num1: First number to compare (must be a valid integer)
 #   num2: Second number to compare (must be a valid integer)
 #   error_message: Optional custom error message (defaults to showing both values)
+# Returns: TRUE if numbers are equal, FALSE and shows error if not
 assert_are_equal_num() {
     local num1="$1"
     local num2="$2"
     local error_message="${3:-Assertion failed: Expected '$num1' to equal '$num2'.}"
-    if ! are_equal_num "$num1" "$num2"; then
-        show_error "$error_message"
-    fi
+    are_equal_num "$num1" "$num2" && return $TRUE || { show_error "$error_message"; return $FALSE; }
 }
 
 # Asserts that first number is greater than second and displays an error message if not
-# Uses is_greater_than internally for numeric comparison
 # Displays error message using show_error if assertion fails
 # Will error if either parameter is not a valid integer
 # Usage: assert_is_greater_than "15" "10" "Custom error message"
@@ -1180,17 +1169,15 @@ assert_are_equal_num() {
 #   num1: First number to compare (must be a valid integer)
 #   num2: Second number to compare (must be a valid integer)
 #   error_message: Optional custom error message (defaults to showing both values)
+# Returns: TRUE if num1 > num2, FALSE and shows error if not
 assert_is_greater_than() {
     local num1="$1"
     local num2="$2"
     local error_message="${3:-Assertion failed: Expected '$num1' to be greater than '$num2'.}"
-    if ! is_greater_than "$num1" "$num2"; then
-        show_error "$error_message"
-    fi
+    is_greater_than "$num1" "$num2" && return $TRUE || { show_error "$error_message"; return $FALSE; }
 }
 
 # Asserts that first number is greater than or equal to second and displays an error message if not
-# Uses is_greater_than_or_equal internally for numeric comparison
 # Displays error message using show_error if assertion fails
 # Will error if either parameter is not a valid integer
 # Usage: assert_is_greater_than_or_equal "10" "10" "Custom error message"
@@ -1198,17 +1185,15 @@ assert_is_greater_than() {
 #   num1: First number to compare (must be a valid integer)
 #   num2: Second number to compare (must be a valid integer)
 #   error_message: Optional custom error message (defaults to showing both values)
+# Returns: TRUE if num1 >= num2, FALSE and shows error if not
 assert_is_greater_than_or_equal() {
     local num1="$1"
     local num2="$2"
     local error_message="${3:-Assertion failed: Expected '$num1' to be greater than or equal to '$num2'.}"
-    if ! is_greater_than_or_equal "$num1" "$num2"; then
-        show_error "$error_message"
-    fi
+    is_greater_than_or_equal "$num1" "$num2" && return $TRUE || { show_error "$error_message"; return $FALSE; }
 }
 
 # Asserts that first number is less than second and displays an error message if not
-# Uses is_less_than internally for numeric comparison
 # Displays error message using show_error if assertion fails
 # Will error if either parameter is not a valid integer
 # Usage: assert_is_less_than "5" "10" "Custom error message"
@@ -1216,17 +1201,15 @@ assert_is_greater_than_or_equal() {
 #   num1: First number to compare (must be a valid integer)
 #   num2: Second number to compare (must be a valid integer)
 #   error_message: Optional custom error message (defaults to showing both values)
+# Returns: TRUE if num1 < num2, FALSE and shows error if not
 assert_is_less_than() {
     local num1="$1"
     local num2="$2"
     local error_message="${3:-Assertion failed: Expected '$num1' to be less than '$num2'.}"
-    if ! is_less_than "$num1" "$num2"; then
-        show_error "$error_message"
-    fi
+    is_less_than "$num1" "$num2" && return $TRUE || { show_error "$error_message"; return $FALSE; }
 }
 
 # Asserts that first number is less than or equal to second and displays an error message if not
-# Uses is_less_than_or_equal internally for numeric comparison
 # Displays error message using show_error if assertion fails
 # Will error if either parameter is not a valid integer
 # Usage: assert_is_less_than_or_equal "10" "15" "Custom error message"
@@ -1234,13 +1217,12 @@ assert_is_less_than() {
 #   num1: First number to compare (must be a valid integer)
 #   num2: Second number to compare (must be a valid integer)
 #   error_message: Optional custom error message (defaults to showing both values)
+# Returns: TRUE if num1 <= num2, FALSE and shows error if not
 assert_is_less_than_or_equal() {
     local num1="$1"
     local num2="$2"
     local error_message="${3:-Assertion failed: Expected '$num1' to be less than or equal to '$num2'.}"
-    if ! is_less_than_or_equal "$num1" "$num2"; then
-        show_error "$error_message"
-    fi
+    is_less_than_or_equal "$num1" "$num2" && return $TRUE || { show_error "$error_message"; return $FALSE; }
 }
 
 # FLOW
@@ -1280,8 +1262,10 @@ flow_run(){
                 else
                     echo
                     show_error "Step '$step_description' failed with exit code $?"
-                    show_warning "Flow execution stopped due to error"
-                    exit 1
+                    prompt_yesno "Do you want to continue the flow despite the error?" || {
+                        show_warning "Aborting flow execution due to error"
+                        exit 1
+                    }
                 fi
                 ;;
             "Skip")

@@ -824,3 +824,4 @@ Luciano Soares - [GitHub Repository](https://github.com/soaresluciano/splash)
 ## TODO
 
 - find a better way to load the lib
+- workflow steps execute out of order
