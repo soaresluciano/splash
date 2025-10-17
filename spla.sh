@@ -229,7 +229,7 @@ prompt_question() {
 # Usage: if prompt_yesno "Continue?"; then ... fi
 prompt_yesno() {
     local question="$1"
-    local reply=$(prompt_question "$question" "y/N" 1)
+    local reply=$(prompt_question "$question" "y/N" 1 2>/dev/null)
     echo
     [[ $reply =~ ^[Yy]$ ]]
 }
@@ -239,8 +239,8 @@ prompt_yesno() {
 # Usage: if prompt_proceed "This will delete all files"; then ... fi
 prompt_proceed() {
     local description="$1"
-    warning "$description"
-    if yesno "Do you want to proceed?"; then
+    show_warning "$description"
+    if prompt_yesno "Do you want to proceed?"; then
         return $TRUE
     else
         show_log "Operation cancelled by user."
@@ -285,7 +285,7 @@ prompt_menu() {
     while true; do
         read -p "> " -n1 choice
         echo >&2  # move to new line after single character input
-        if [[ "$choice" =~ ^[1-9][0-9]*$ ]] && (( choice >= 1 && choice < i )); then
+        if [[ "$choice" =~ ^[1-9][0-9]*$ ]] && (( choice >= 1 && choice <= i - 1 )); then
             echo "${options[$((choice-1))]}"
             return 0
         else
@@ -598,7 +598,7 @@ file_create_with_content () {
     local content="${_PARSED_ARGS[1]:-}"
     if prompt_overwrite "$filename"; then
         if prompt_yesno "Do you want to backup '$filename' first?"; then
-            backup "$filename"
+            file_backup "$filename"
         fi
     else
         show_log "No changes made. The existing file '$filename' will be used."
@@ -1385,7 +1385,7 @@ _sudo_is_on() {
 }
 
 # Returns TRUE if logging is enabled, FALSE otherwise
-_logs_is_on() {
+_log_is_on() {
     [ "$_USE_LOG" -eq $TRUE ]
 }
 
