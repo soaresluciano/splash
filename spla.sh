@@ -1,18 +1,8 @@
 #!/bin/bash
 
 #==============================================================================
-# SPLA.SH - Shell Utility Library
+# 💦 SPLA.SH - Shell Utility Library
 #==============================================================================
-# A comprehensive bash utility library providing styled output, user interaction,
-# system operations, and file manipulation functions.
-#
-# Features:
-# - Dynamic color and formatting system with ANSI escape codes
-# - User interface functions for titles, headers, messages, and prompts
-# - Interactive menus and yes/no prompts
-# - File operations with optional sudo support
-# - System utility functions
-#
 # Author: Luciano Soares
 # Repository: https://github.com/soaresluciano/splash
 #==============================================================================
@@ -96,18 +86,16 @@ get_script_dir() {
 style() {
     local codes=()
     local output=""
-    
     # Process all arguments
     for arg in "$@"; do
         # Check if it's a color
-        if [[ -n "${COLORS[$arg]}" ]]; then
+        if is_not_empty "${COLORS[$arg]}"; then
             codes+=("${COLORS[$arg]}")
         # Check if it's a format
-        elif [[ -n "${FORMATS[$arg]}" ]]; then
+        elif is_not_empty "${FORMATS[$arg]}"; then
             codes+=("${FORMATS[$arg]}")
         fi
     done
-    
     # Join codes with semicolons and create escape sequence
     if [[ ${#codes[@]} -gt 0 ]]; then
         local joined_codes=$(IFS=';'; echo "${codes[*]}")
@@ -129,7 +117,6 @@ style() {
 styled() {
     local text="${@: -1}"  # Last argument is the text
     local style_args=("${@:1:$#-1}")  # All but last argument are style parameters
-    
     echo -e "$(style "${style_args[@]}")${text}${NC}"
 }
 
@@ -190,7 +177,7 @@ show_suggestion () {
 show_question () {
     local question="$1"
     local options="$2"
-    if [ -n "$options" ]; then
+    if is_not_empty "$options"; then
         styled blue "❔ $question ($options)"
     else
         styled blue "❔ $question"
@@ -228,8 +215,7 @@ prompt_question() {
     local options="$2"
     local char_limit="$3"
     show_question "$question" "$options" >&2
-    
-    if [ -n "$char_limit" ]; then
+    if is_not_empty "$char_limit"; then
         read -s -p "> " -n "$char_limit" input  # silent read to avoid double echo
         echo "$input" >&2  # display the input to stderr (for user feedback, includes newline)
     else
@@ -283,7 +269,6 @@ prompt_menu() {
     local prompt="$1"
     shift
     local options=("$@")
-    
     # Menu display
     {
         echo
@@ -295,7 +280,6 @@ prompt_menu() {
             ((i++))
         done
     } >&2
-
     # Capture user input
     local choice
     while true; do
@@ -535,7 +519,6 @@ file_str_append() {
         show_error "Nothing was appended."
         return
     }
-
     echo "$content" | ${_SUDO_CMD}tee -a "$filename"
     show_success "The content was appended to $filename."
 }
@@ -941,23 +924,19 @@ validate_dependencies() {
     local required_dependencies=("$@")
     local missing_dependencies=()
     local validation_failed=false
-
     show_header "Checking dependencies"
-
     for dep in "${required_dependencies[@]}"; do
         if ! validate_item "$dep" "command_exists $dep" "Install '$dep'"; then
             missing_dependencies+=("$dep")
             validation_failed=true
         fi
     done
-    
     if [ "$validation_failed" = true ]; then
         show_warning "Missing dependencies: ${missing_dependencies[*]}"
         show_error "The script cannot continue without these dependencies."
         show_suggestion "Please install them and re-run the script."
         exit 1
     fi
-
     show_success "All dependencies are installed"
 }
 
@@ -975,7 +954,6 @@ download_file() {
     _parse_common_params "$@"
     local url="${_PARSED_ARGS[0]}"
     local dest="${_PARSED_ARGS[1]}"
-
     if command_exists "wget"; then
         ${_SUDO_CMD}wget -O "$dest" "$url"
     elif command_exists "curl"; then
@@ -1251,7 +1229,6 @@ assert_is_less_than_or_equal() {
 # Parameters:
 #   workflow_steps: Name of associative array where keys are function names 
 #                  and values are step descriptions
-# 
 # Example:
 #   declare -A my_workflow=(
 #       [askSudo]="Request sudo privileges"
@@ -1263,18 +1240,14 @@ flow_run(){
     clear
     echo
     show_info "Starting workflow execution"
-    
     # This function expects an associative array passed by reference
     local -n workflow_ref=$1
     local total_steps=${#workflow_ref[@]}
     local step_num=0
-
     for step_function in "${!workflow_ref[@]}"; do
         local step_description="${workflow_ref[$step_function]}"
         local title="STEP: $step_description"
-        
         show_header "[$step_num/$total_steps] $title"
-
         local selected=$(prompt_menu "Please select an option:" "Continue" "Skip" "Quit")
         case $selected in
             "Continue")
@@ -1302,7 +1275,6 @@ flow_run(){
         esac
         ((step_num++))
     done
-    
     echo
     show_success "Workflow execution completed"
     echo
@@ -1325,7 +1297,7 @@ _GLOBAL_TEMP_DIR=""
 #   mkdir -p "$temp_dir/subdir"
 #   echo "data" > "$temp_dir/file.txt"
 temp_dir_get() {
-    if is_empty "$_GLOBAL_TEMP_DIR" || [ ! -d "$_GLOBAL_TEMP_DIR" ]; then
+    if is_empty "$_GLOBAL_TEMP_DIR" || ! dir_exists "$_GLOBAL_TEMP_DIR" --no-log; then
         trap '_cleanup_temp_dir' EXIT
         _GLOBAL_TEMP_DIR=$(mktemp -d)
     fi
@@ -1334,7 +1306,7 @@ temp_dir_get() {
 
 # Internal cleanup function for the global temporary directory
 _cleanup_temp_dir() {
-    if is_not_empty "$_GLOBAL_TEMP_DIR" && [ -d "$_GLOBAL_TEMP_DIR" ]; then
+    if is_not_empty "$_GLOBAL_TEMP_DIR" && dir_exists "$_GLOBAL_TEMP_DIR" --no-log; then
         dir_delete_recursive "$_GLOBAL_TEMP_DIR"
         _GLOBAL_TEMP_DIR=""
     fi
@@ -1370,7 +1342,7 @@ _parse_common_params() {
     _USE_ASK=$FALSE
     _PARSED_ARGS=()
     _SUDO_CMD=""
-
+    
     _parse_flags_and_args _PARSED_ARGS "$@"
     _SUDO_CMD=${_USE_SUDO:+sudo }
 }
@@ -1379,7 +1351,7 @@ _parse_common_params() {
 _build_args() {
     local target_function="$1"
     shift
-    
+
     # Save current state
     local saved_sudo=$_USE_SUDO
     local saved_log=$_USE_LOG
@@ -1390,9 +1362,9 @@ _build_args() {
     _parse_flags_and_args args "$@"
     
     # Add conditional flags based on current state (including overrides)
-    [ "$_USE_LOG" -eq $FALSE ] && args+=(--no-log)
-    [ "$_USE_SUDO" -eq $TRUE ] && args+=(--sudo)
-    [ "$_USE_ASK" -eq $TRUE ] && args+=(--ask)
+    ! _log_is_on && args+=(--no-log)
+    _sudo_is_on && args+=(--sudo)
+    _ask_is_on && args+=(--ask)
 
     # Call the function
     local result

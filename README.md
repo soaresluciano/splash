@@ -1,4 +1,4 @@
-# SPLA.SH - Shell Utility Library
+# 💦 SPLA.SH - Shell Utility Library
 
 A comprehensive bash utility library providing styled output, user interaction, system operations, and file manipulation functions.
 
