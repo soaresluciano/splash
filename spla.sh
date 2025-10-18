@@ -569,6 +569,18 @@ file_str_replace() {
     show_success "The $filename was processed with ${#pairs[@]} replacements."
 }
 
+file_str_contains() {
+    _parse_common_params "$@"
+    local filename="${_PARSED_ARGS[0]}"
+    local substring="${_PARSED_ARGS[1]}"
+    _build_args file_is_readable "$filename" || {
+        show_error "The file '$filename' cannot be checked."
+        return $FALSE
+    }
+    ${_SUDO_CMD}grep -qF "$substring" "$filename"
+    return $?
+}
+
 # Creates a backup copy of a file with .original extension
 # Only creates backup if the original file exists
 # Usage: file_backup <filename> [--sudo]
@@ -1038,6 +1050,16 @@ are_equal_num() {
     [ "$1" -eq "$2" ]
 }
 
+# Compares two values for equality, trying numeric comparison first, then string comparison
+# Returns TRUE if values are equal (either numerically or as strings), FALSE otherwise
+# Usage: if are_equal "10" "10"; then ... fi
+# Parameters:
+#   value1: First value to compare
+#   value2: Second value to compare
+are_equal() {
+    are_equal_num "$1" "$2" || are_equal_str "$1" "$2"
+}
+
 # Checks if the first number is arithmetically greater than the second
 # Treats both parameters as integers and performs numeric comparison
 # Returns TRUE if first number > second number, FALSE otherwise
@@ -1084,6 +1106,24 @@ is_less_than() {
 #   number2: Second number to compare (must be a valid integer)
 is_less_than_or_equal() {
     [ "$1" -le "$2" ]
+}
+
+is_true() {
+    are_equal "$1" "$TRUE"
+}
+
+is_false() {
+    are_equal "$1" "$FALSE"
+}
+
+is_success() {
+    is_true "$1"
+}
+
+contains_str() {
+    local string="$1"
+    local substring="$2"
+    echo "$string" | grep -qF "$substring"
 }
 
 # ASSERTIONS
@@ -1324,33 +1364,101 @@ run_autoinput_silent() {
     printf '%s' "$?"
 }
 
-# Compares the output of a command against an expected string
-# Usage: if run_compare_output "expected output" command arg1 arg2; then ... fi
-# Parameters:
-#   expected_output: The expected output string to compare against
-#   command: Command to run
-#   arg1, arg2, ...: Arguments to pass to the command
-# Returns: TRUE if output matches expected string, FALSE otherwise
-run_output_compare() {
-    local expected_output="$1"
+# Runs a command, captures its output in a variable, and returns the exit status
+# Usage: run_and_capture_output <output_var_name> command [args...]
+# Example:
+#   run_and_capture_output result_var ls -l /tmp
+#   status=$?
+#   echo "Output: $result_var"
+run_and_capture_output() {
+    local __outvar="$1"
     shift
-    local actual_output=$("$@")
-    echo "$(are_equal_str "$expected_output" "$actual_output")"}
+    local __result
+    __result=$("$@" 2>&1)
+    local __status=$?
+    eval "$__outvar=\"\${__result}\""
+    return $__status
+}
 
-# Simulates interactive input for a command and compares its output against an expected string
-# Usage: if run_autoinput_output_compare "input1\ninput2\n" "expected output" command arg1 arg2; then ... fi
+## Checks if the output of a command contains a given substring
+# Usage:
+#   run_output_contains outvar "substring" command arg1 arg2
+#   echo "Command status: ${outvar}"
 # Parameters:
-#   input: Predefined input string with newline-separated inputs
-#   expected_output: The expected output string to compare against
-#   command: Command to run that requires interactive input
+#   outvar: Name of the variable to receive the command's exit status
+#   expected_substring: The substring to search for in the command output (stdout+stderr)
+#   command: The command to run
 #   arg1, arg2, ...: Arguments to pass to the command
-# Returns: TRUE if output matches expected string, FALSE otherwise
-run_autoinput_output_compare() {
-    local input="$1"
+# Returns:
+#   TRUE if the output contains the substring
+#   FALSE if the output does not contain the substring
+run_output_contains() {
+    local __outvar="$1"
+    local expected_substring="$2"
+    shift 2
+    run_and_capture_output actual_output "$@"
+    status=$?
+    eval "$__outvar=$status"
+    if ! is_success $status; then
+        return $FALSE
+    fi
+    contains_str "$actual_output" "$expected_substring"
+    return $?
+}
+
+## Compares the output of a command to an expected string (exact match)
+# Usage:
+#   run_output_compare outvar "expected output" command arg1 arg2
+#   echo "Command status: ${outvar}"
+# Parameters:
+#   outvar: Name of the variable to receive the command's exit status
+#   expected_output: The exact string expected as output (stdout+stderr) from the command
+#   command: The command to run
+#   arg1, arg2, ...: Arguments to pass to the command
+# Returns:
+#   TRUE if the command output matches the expected string exactly
+#   FALSE if the output does not match
+run_output_compare() {
+    local __outvar="$1"
     local expected_output="$2"
     shift 2
-    local actual_output=$(run_autoinput "$input" "$@")
-    echo "$(are_equal_str "$expected_output" "$actual_output")"}
+    run_and_capture_output actual_output "$@"
+    local status=$?
+    eval "$__outvar=$status"
+    if ! is_success $status; then
+        return $FALSE
+    fi
+    are_equal_str "$expected_output" "$actual_output"
+    return $?
+}
+
+## Simulates interactive input for a command and compares its output to an expected string (exact match)
+# Usage:
+#   run_autoinput_output_compare outvar "input1\ninput2\n" "expected output" command arg1 arg2
+#   echo "Command status: ${outvar}"
+# Parameters:
+#   outvar: Name of the variable to receive the command's exit status
+#   input: String containing simulated user input (use \n for line breaks)
+#   expected_output: The exact string expected as output (stdout+stderr) from the command
+#   command: The command to run (should read from stdin)
+#   arg1, arg2, ...: Arguments to pass to the command
+# Returns:
+#   TRUE if the command output matches the expected string exactly
+#   FALSE if the output does not match
+run_autoinput_output_compare() {
+    local __outvar="$1"
+    local input="$2"
+    local expected_output="$3"
+    shift 3
+    run_and_capture_output actual_output run_autoinput "$input" "$@"
+    status=$?
+    eval "$__outvar=$status"
+    if ! is_success $status; then
+        return $FALSE
+    fi
+    are_equal_str "$expected_output" "$actual_output"
+    return $?
+}
 
 # TEMPORARY DIRECTORY MANAGEMENT
 #==============================================================================
@@ -1452,17 +1560,17 @@ _build_args() {
 
 # Returns TRUE if sudo is enabled, FALSE otherwise
 _sudo_is_on() {
-    [ "$_USE_SUDO" -eq $TRUE ]
+    are_equal "$_USE_SUDO" $TRUE
 }
 
 # Returns TRUE if logging is enabled, FALSE otherwise
 _log_is_on() {
-    [ "$_USE_LOG" -eq $TRUE ]
+    are_equal "$_USE_LOG" $TRUE
 }
 
 # Returns TRUE if sudo is enabled, FALSE otherwise
 _ask_is_on() {
-    [ "$_USE_ASK" -eq $TRUE ]
+    are_equal "$_USE_ASK" $TRUE
 }
 
 #==============================================================================
