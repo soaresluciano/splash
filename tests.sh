@@ -2,6 +2,7 @@
 set -e
 source ./spla.sh
 
+
 assert_passes_with() {
     local expected_msg="$1"
     shift
@@ -72,6 +73,28 @@ assert_fails_without() {
     fi
 }
 
+assert_passes_with2() {
+    local expected_msg="$1"
+    shift
+    assert_output_contains $TRUE "$expected_msg" "$@"
+    return $?
+}
+
+assert_fails_with2() {
+    local expected_msg="$1"
+    shift
+    assert_output_contains $FALSE "$expected_msg" "$@"
+    return $?
+}
+
+# Asserts that a command fails and its output does NOT contain the expected message
+assert_fails_without2() {
+    local forbidden_msg="$1"
+    shift
+    assert_output_contains $TRUE "$forbidden_msg" "$@"
+    return !$?
+}
+
 demo_utils() {
     show_keyvalue "get_script_dir" "$(get_script_dir)"
     show_keyvalue "get_current_user" "$(get_current_user)"
@@ -137,146 +160,8 @@ demo_system_info() {
 }
 
 test_user_interactions() {
-    # prompt_continue
-    #   test case:
-    #   - check that it shows the correct message
-    #   - check that it waits for user input
-    #   - simulate user pressing Enter (no input)
-
-    # prompt_question
-    #   test case:
-    #   - check that it shows the correct message
-    #   - check that it shows the options (if provided)
-
-    #   test case:
-    #   - check that it shows the correct message
-    #   - check that it DOES NOT shows any option (if not provided)
-
-    #   test case:
-    #   - check that it waits for user input
-    #   - simulate user providing input
-    #   - verify that the returned value matches the input
-
-    #  test case:
-    #  - check the character limit enforcement (if specified)
-
-    #  test case:
-    #  - check the character limit IS NOT enforced (if not specified)
-
-    # prompt_yesno
-    #   test case:
-    #   - check that it shows the correct message
-    #   - check that it shows the options [y/N]
-    #   - check that it waits for user input
-
-    #   test case:
-    #   - simulate user input 'y' and verify that it returns true
-    #   - simulate user input 'Y' and verify that it returns true
-
-    #   test case:
-    #   - simulate user input 'n' and verify that it returns false
-    #   - simulate user input 'N' and verify that it returns false
-
-    #   test case:
-    #   - simulate user pressing Enter (no input) and verify that it returns false (default)
-
-    # prompt_proceed
-    #   test case:
-    #   - check that it shows the correct message
-    #   - check that it shows the options [y/N]
-    #   - check that it waits for user input
-
-    #   test case:
-    #   - simulate user input 'y' and verify that it returns true
-
-    #   test case:
-    #   - simulate user input 'n' and verify that it returns false
-    #   - simulate user pressing Enter (no input) and verify that it returns false (default)
-    #   - verify that it shows the warning message when user chooses not to proceed
-
-    # prompt_overwrite
-    #   test case:
-    #   - check that it shows the correct message when file exists
-    #   - check that it shows the options [y/N]
-    #   - check that it waits for user input
-
-    #   test case:
-    #   - simulate user input 'y' and verify that it returns true
-    #   - simulate user input 'n' and verify that it returns false
-    #   - simulate user pressing Enter (no input) and verify that it returns false (default)
-    #   - verify that it shows the warning message when user chooses not to proceed
-
-    # prompt_overwrite
-    #   test case:
-    #   - check that it shows the correct message when file exists
-    #   - check that it shows the options [y/N]
-    #   - check that it waits for user input
-
-    #   test case:
-    #   - simulate user input 'y' and verify that it returns true
-    #   - check that it shows the success message when user chooses to overwrite
-
-    #   test case:
-    #   - simulate user input 'n' and verify that it returns false
-    #   - simulate user pressing Enter (no input) and verify that it returns false (default)
-    #   - verify that it shows the warning message when user chooses not to proceed
-
-    # -- OLD CODE EXAMPLES --
-    # result=$(prompt_question "Enter your name" <<< "Alice")
-    # expected="Alice"
-    # if [[ "$result" == "$expected" ]]; then
-    #     echo "prompt_question test: PASS"
-    # else
-    #     echo "prompt_question test: FAIL (got '$result', expected '$expected')"
-    # fi
-
-    # if prompt_yesno "Do you want to continue?"; then
-    #     show_success "You chose to continue."
-    # else
-    #     show_warning "You chose not to continue."
-    # fi
-
-    # if prompt_proceed "This action will delete all temporary files."; then
-    #     show_success "Proceeding with the action."
-    # else
-    #     show_warning "Action cancelled."
-    # fi
-    # Helpers to run interactive functions with simulated input and
-    # return a literal exit code string ("0" or "1") so it can be
-    # passed to validate_item without providing the unit under test
-    # as a raw command string.
-
-    # run_with_input <input> <func> [args...]
-    # Runs <func> with <input> provided on stdin and echoes its exit code.
-    run_with_input() {
-        local input="$1"
-        shift
-        # Redirect all stdout/stderr from the interactive unit under test
-        # so that the command substitution only contains the exit code.
-        ( printf '%s\n' "$input" | "$@" >/dev/null 2>&1 )
-        printf '%s' "$?"
-    }
-
-    # run_and_compare_output <expected> <input> <func> [args...]
-    # Runs <func> with <input>, captures stdout, compares with <expected>
-    # and echoes 0 if equal or 1 otherwise.
-    run_and_compare_output() {
-        local expected="$1"
-        local input="$2"
-        shift 2
-        local out
-        out=$(printf '%s\n' "$input" | "$@")
-        if [ "$out" = "$expected" ]; then
-            printf '%s' 0
-        else
-            printf '%s' 1
-        fi
-    }
-
-    # --- Actual tests ---
-
     # prompt_continue: simulate pressing Enter (no input)
-    validate_item "prompt_continue: waits for Enter" $(run_with_input "" prompt_continue)
+    validate_item "prompt_continue: waits for Enter" $(run_autoinput_silent "" prompt_continue)
 
     # prompt_question: returns the user's input
     validate_item "prompt_question: returns input" $(run_and_compare_output "Alice" "Alice" prompt_question "Enter your name")
@@ -285,28 +170,27 @@ test_user_interactions() {
     validate_item "prompt_question: enforces char limit" $(run_and_compare_output "ABC" "ABCDE" prompt_question "Limited" "" 3)
 
     # prompt_yesno: accept 'y' and 'Y' as true
-    validate_item "prompt_yesno: accepts 'y'" $(run_with_input "y" prompt_yesno "Continue?")
-    validate_item "prompt_yesno: accepts 'Y'" $(run_with_input "Y" prompt_yesno "Continue?")
-
+    validate_item "prompt_yesno: accepts 'y'" $(run_autoinput_silent "y" prompt_yesno "Continue?")
+    validate_item "prompt_yesno: accepts 'Y'" $(run_autoinput_silent "Y" prompt_yesno "Continue?")
 
     # prompt_yesno: accepts 'n' and 'N' as false (validate_item should FAIL)
-    assert_fails_with "FAIL" validate_item "prompt_yesno: rejects 'n'" $(run_with_input "n" prompt_yesno "Continue?")
-    assert_fails_with "FAIL" validate_item "prompt_yesno: rejects 'N'" $(run_with_input "N" prompt_yesno "Continue?")
+    validate_item "prompt_yesno: rejects 'n'" $(assert_fails_with "" run_autoinput_silent "n" prompt_yesno "Continue?")
+    validate_item "prompt_yesno: rejects 'N'" $(assert_fails_with "" run_autoinput_silent "N" prompt_yesno "Continue?")
 
     # prompt_yesno: pressing Enter defaults to no (validate_item should FAIL)
-    assert_fails_with "FAIL" validate_item "prompt_yesno: Enter defaults to no" $(run_with_input "" prompt_yesno "Continue?")
+    validate_item "prompt_yesno: Enter defaults to no" $(assert_fails_with "" run_autoinput_silent "" prompt_yesno "Continue?")
 
     # prompt_proceed: simulate proceed (yes)
-    validate_item "prompt_proceed: proceed on yes" $(run_with_input "y" prompt_proceed "This will run.")
+    validate_item "prompt_proceed: proceed on yes" $(run_autoinput_silent "y" prompt_proceed "This will run.")
 
     # prompt_proceed: simulate cancel (no) -> validate_item should FAIL
-    assert_fails_with "FAIL" validate_item "prompt_proceed: cancel on no" $(run_with_input "n" prompt_proceed "This will not run.")
+    validate_item "prompt_proceed: cancel on no" $(assert_fails_with "Operation cancelled by user." run_autoinput_silent "n" prompt_proceed "This will not run.")
 
     # prompt_overwrite: simulate overwrite (yes)
-    validate_item "prompt_overwrite: overwrite on yes" $(run_with_input "y" prompt_overwrite "file.txt")
+    validate_item "prompt_overwrite: overwrite on yes" $(run_autoinput_silent "y" prompt_overwrite "file.txt")
 
     # prompt_overwrite: do not overwrite on no -> validate_item should FAIL
-    assert_fails_with "FAIL" validate_item "prompt_overwrite: keep existing on no" $(run_with_input "n" prompt_overwrite "file.txt")
+    validate_item "prompt_overwrite: keep existing on no" $(assert_fails_with "Using existing RESOURCE" run_autoinput_silent "n" prompt_overwrite "RESOURCE")
 }
 
 # test_menu() {
@@ -458,4 +342,5 @@ declare -A tests=(
     [test_validations]="Validation tests"
 )
 #flow_run tests
+
 test_user_interactions

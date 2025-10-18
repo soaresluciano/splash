@@ -1265,6 +1265,27 @@ assert_is_less_than_or_equal() {
     is_less_than_or_equal "$num1" "$num2" && return $TRUE || { show_error "$error_message"; return $FALSE; }
 }
 
+# Asserts that the output of a command contains a given substring and matches expected status
+# Usage:
+#   assert_output_contains expected_status "expected substring" command arg1 arg2
+# Parameters:
+#   expected_status: Expected exit status of the command
+#   expected_msg: The substring expected to be found in the command output
+#   command: The command to run
+#   arg1, arg2, ...: Arguments to pass to the command
+# Returns:
+#   TRUE if the output contains the substring and status matches
+#   FALSE and shows error if not
+assert_output_contains() {
+    local expected_status="$1"
+    local expected_msg="$2"
+    shift 2
+    local result=$(run_output_contains actual_status "$expected_msg" "$@")
+    local error_message="The command returned an unexpected status: $actual_status"
+    are_equal "$actual_status" "$expected_status" || { show_error "$error_message"; return $FALSE; }
+    return $result
+}
+
 # FLOW
 #==============================================================================
 
@@ -1399,9 +1420,6 @@ run_output_contains() {
     run_and_capture_output actual_output "$@"
     status=$?
     eval "$__outvar=$status"
-    if ! is_success $status; then
-        return $FALSE
-    fi
     contains_str "$actual_output" "$expected_substring"
     return $?
 }
@@ -1425,9 +1443,6 @@ run_output_compare() {
     run_and_capture_output actual_output "$@"
     local status=$?
     eval "$__outvar=$status"
-    if ! is_success $status; then
-        return $FALSE
-    fi
     are_equal_str "$expected_output" "$actual_output"
     return $?
 }
@@ -1453,9 +1468,6 @@ run_autoinput_output_compare() {
     run_and_capture_output actual_output run_autoinput "$input" "$@"
     status=$?
     eval "$__outvar=$status"
-    if ! is_success $status; then
-        return $FALSE
-    fi
     are_equal_str "$expected_output" "$actual_output"
     return $?
 }
