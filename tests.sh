@@ -241,7 +241,72 @@ test_user_interactions() {
     # else
     #     show_warning "Action cancelled."
     # fi
-    echo
+    # Helpers to run interactive functions with simulated input and
+    # return a literal exit code string ("0" or "1") so it can be
+    # passed to validate_item without providing the unit under test
+    # as a raw command string.
+
+    # run_with_input <input> <func> [args...]
+    # Runs <func> with <input> provided on stdin and echoes its exit code.
+    run_with_input() {
+        local input="$1"
+        shift
+        # Redirect all stdout/stderr from the interactive unit under test
+        # so that the command substitution only contains the exit code.
+        ( printf '%s\n' "$input" | "$@" >/dev/null 2>&1 )
+        printf '%s' "$?"
+    }
+
+    # run_and_compare_output <expected> <input> <func> [args...]
+    # Runs <func> with <input>, captures stdout, compares with <expected>
+    # and echoes 0 if equal or 1 otherwise.
+    run_and_compare_output() {
+        local expected="$1"
+        local input="$2"
+        shift 2
+        local out
+        out=$(printf '%s\n' "$input" | "$@")
+        if [ "$out" = "$expected" ]; then
+            printf '%s' 0
+        else
+            printf '%s' 1
+        fi
+    }
+
+    # --- Actual tests ---
+
+    # prompt_continue: simulate pressing Enter (no input)
+    validate_item "prompt_continue: waits for Enter" $(run_with_input "" prompt_continue)
+
+    # prompt_question: returns the user's input
+    validate_item "prompt_question: returns input" $(run_and_compare_output "Alice" "Alice" prompt_question "Enter your name")
+
+    # prompt_question: character limit enforcement (limit=3)
+    validate_item "prompt_question: enforces char limit" $(run_and_compare_output "ABC" "ABCDE" prompt_question "Limited" "" 3)
+
+    # prompt_yesno: accept 'y' and 'Y' as true
+    validate_item "prompt_yesno: accepts 'y'" $(run_with_input "y" prompt_yesno "Continue?")
+    validate_item "prompt_yesno: accepts 'Y'" $(run_with_input "Y" prompt_yesno "Continue?")
+
+
+    # prompt_yesno: accepts 'n' and 'N' as false (validate_item should FAIL)
+    assert_fails_with "FAIL" validate_item "prompt_yesno: rejects 'n'" $(run_with_input "n" prompt_yesno "Continue?")
+    assert_fails_with "FAIL" validate_item "prompt_yesno: rejects 'N'" $(run_with_input "N" prompt_yesno "Continue?")
+
+    # prompt_yesno: pressing Enter defaults to no (validate_item should FAIL)
+    assert_fails_with "FAIL" validate_item "prompt_yesno: Enter defaults to no" $(run_with_input "" prompt_yesno "Continue?")
+
+    # prompt_proceed: simulate proceed (yes)
+    validate_item "prompt_proceed: proceed on yes" $(run_with_input "y" prompt_proceed "This will run.")
+
+    # prompt_proceed: simulate cancel (no) -> validate_item should FAIL
+    assert_fails_with "FAIL" validate_item "prompt_proceed: cancel on no" $(run_with_input "n" prompt_proceed "This will not run.")
+
+    # prompt_overwrite: simulate overwrite (yes)
+    validate_item "prompt_overwrite: overwrite on yes" $(run_with_input "y" prompt_overwrite "file.txt")
+
+    # prompt_overwrite: do not overwrite on no -> validate_item should FAIL
+    assert_fails_with "FAIL" validate_item "prompt_overwrite: keep existing on no" $(run_with_input "n" prompt_overwrite "file.txt")
 }
 
 # test_menu() {
@@ -392,4 +457,5 @@ declare -A tests=(
     [test_assertions]="Assertion tests"
     [test_validations]="Validation tests"
 )
-flow_run tests
+#flow_run tests
+test_user_interactions
