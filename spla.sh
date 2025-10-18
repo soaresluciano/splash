@@ -102,7 +102,7 @@ style() {
         fi
     done
     # Join codes with semicolons and create escape sequence
-    if [[ ${#codes[@]} -gt 0 ]]; then
+    if is_greater_than ${#codes[@]} 0; then
         local joined_codes=$(IFS=';'; echo "${codes[*]}")
         echo "\033[${joined_codes}m"
     fi
@@ -798,7 +798,7 @@ sudoing () {
 # Returns TRUE if command exists, FALSE if it doesn't
 # Usage: if command_exists "git"; then ... fi
 command_exists() {
-    command -v "$1" >/dev/null 2>&1
+    echo "$(run_silent command -v "$1")"
 }
 
 # Sources a file if it exists
@@ -1283,6 +1283,74 @@ flow_run(){
     banner_completed "Flow execution completed"
     exit 0
 }
+
+# RUN
+#==============================================================================
+
+# Runs a command and suppresses all output
+# Usage: run_silent command arg1 arg2
+# Parameters:
+#   command: Command to run
+#   arg1, arg2, ...: Arguments to pass to the command
+run_silent() {
+    "$@" >/dev/null 2>&1
+    printf '%s' "$?"
+}
+
+# Simulates interactive input for a command by piping predefined input
+# Usage: run_autoinput "input1\ninput2\n" command arg1 arg
+# Parameters:
+#   input: Predefined input string with newline-separated inputs
+#   command: Command to run that requires interactive input
+#   arg1, arg2, ...: Arguments to pass to the command
+run_autoinput() {
+    local input="$1"
+    shift
+    printf '%s\n' "$input" | "$@"
+}
+
+# Simulates interactive input for a command that runs silently
+# Suppresses all output and returns only the exit code
+# Usage: exit_code=$(run_autoinput_silent "input1\ninput2\n" command arg1 arg2)
+# Parameters:
+#   input: Predefined input string with newline-separated inputs
+#   command: Command to run that requires interactive input
+#   arg1, arg2, ...: Arguments to pass to the command
+run_autoinput_silent() {
+    local input="$1"
+    shift
+    # suppress output, and print exit code only.
+    run_autoinput "$input" "$@" >/dev/null 2>&1
+    printf '%s' "$?"
+}
+
+# Compares the output of a command against an expected string
+# Usage: if run_compare_output "expected output" command arg1 arg2; then ... fi
+# Parameters:
+#   expected_output: The expected output string to compare against
+#   command: Command to run
+#   arg1, arg2, ...: Arguments to pass to the command
+# Returns: TRUE if output matches expected string, FALSE otherwise
+run_output_compare() {
+    local expected_output="$1"
+    shift
+    local actual_output=$("$@")
+    echo "$(are_equal_str "$expected_output" "$actual_output")"}
+
+# Simulates interactive input for a command and compares its output against an expected string
+# Usage: if run_autoinput_output_compare "input1\ninput2\n" "expected output" command arg1 arg2; then ... fi
+# Parameters:
+#   input: Predefined input string with newline-separated inputs
+#   expected_output: The expected output string to compare against
+#   command: Command to run that requires interactive input
+#   arg1, arg2, ...: Arguments to pass to the command
+# Returns: TRUE if output matches expected string, FALSE otherwise
+run_autoinput_output_compare() {
+    local input="$1"
+    local expected_output="$2"
+    shift 2
+    local actual_output=$(run_autoinput "$input" "$@")
+    echo "$(are_equal_str "$expected_output" "$actual_output")"}
 
 # TEMPORARY DIRECTORY MANAGEMENT
 #==============================================================================
