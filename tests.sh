@@ -137,13 +137,98 @@ demo_system_info() {
 }
 
 test_user_interactions() {
-    result=$(prompt_question "Enter your name" <<< "Alice")
-    expected="Alice"
-    if [[ "$result" == "$expected" ]]; then
-        echo "prompt_question test: PASS"
-    else
-        echo "prompt_question test: FAIL (got '$result', expected '$expected')"
-    fi
+    # prompt_continue
+    #   test case:
+    #   - check that it shows the correct message
+    #   - check that it waits for user input
+    #   - simulate user pressing Enter (no input)
+
+    # prompt_question
+    #   test case:
+    #   - check that it shows the correct message
+    #   - check that it shows the options (if provided)
+
+    #   test case:
+    #   - check that it shows the correct message
+    #   - check that it DOES NOT shows any option (if not provided)
+
+    #   test case:
+    #   - check that it waits for user input
+    #   - simulate user providing input
+    #   - verify that the returned value matches the input
+
+    #  test case:
+    #  - check the character limit enforcement (if specified)
+
+    #  test case:
+    #  - check the character limit IS NOT enforced (if not specified)
+
+    # prompt_yesno
+    #   test case:
+    #   - check that it shows the correct message
+    #   - check that it shows the options [y/N]
+    #   - check that it waits for user input
+
+    #   test case:
+    #   - simulate user input 'y' and verify that it returns true
+    #   - simulate user input 'Y' and verify that it returns true
+
+    #   test case:
+    #   - simulate user input 'n' and verify that it returns false
+    #   - simulate user input 'N' and verify that it returns false
+
+    #   test case:
+    #   - simulate user pressing Enter (no input) and verify that it returns false (default)
+
+    # prompt_proceed
+    #   test case:
+    #   - check that it shows the correct message
+    #   - check that it shows the options [y/N]
+    #   - check that it waits for user input
+
+    #   test case:
+    #   - simulate user input 'y' and verify that it returns true
+
+    #   test case:
+    #   - simulate user input 'n' and verify that it returns false
+    #   - simulate user pressing Enter (no input) and verify that it returns false (default)
+    #   - verify that it shows the warning message when user chooses not to proceed
+
+    # prompt_overwrite
+    #   test case:
+    #   - check that it shows the correct message when file exists
+    #   - check that it shows the options [y/N]
+    #   - check that it waits for user input
+
+    #   test case:
+    #   - simulate user input 'y' and verify that it returns true
+    #   - simulate user input 'n' and verify that it returns false
+    #   - simulate user pressing Enter (no input) and verify that it returns false (default)
+    #   - verify that it shows the warning message when user chooses not to proceed
+
+    # prompt_overwrite
+    #   test case:
+    #   - check that it shows the correct message when file exists
+    #   - check that it shows the options [y/N]
+    #   - check that it waits for user input
+
+    #   test case:
+    #   - simulate user input 'y' and verify that it returns true
+    #   - check that it shows the success message when user chooses to overwrite
+
+    #   test case:
+    #   - simulate user input 'n' and verify that it returns false
+    #   - simulate user pressing Enter (no input) and verify that it returns false (default)
+    #   - verify that it shows the warning message when user chooses not to proceed
+
+    # -- OLD CODE EXAMPLES --
+    # result=$(prompt_question "Enter your name" <<< "Alice")
+    # expected="Alice"
+    # if [[ "$result" == "$expected" ]]; then
+    #     echo "prompt_question test: PASS"
+    # else
+    #     echo "prompt_question test: FAIL (got '$result', expected '$expected')"
+    # fi
 
     # if prompt_yesno "Do you want to continue?"; then
     #     show_success "You chose to continue."
@@ -156,8 +241,7 @@ test_user_interactions() {
     # else
     #     show_warning "Action cancelled."
     # fi
-
-    #prompt_overwrite
+    echo
 }
 
 # test_menu() {
@@ -209,7 +293,37 @@ test_validations() {
 # }
 
 # test_comparions() {
-# }
+test_comparisons() {
+    validate_item "is_not_empty: non-empty" $(is_not_empty 'data')
+    validate_item "is_not_empty: empty (should fail)" $(is_not_empty '')
+
+    validate_item "is_empty: empty" $(is_empty '')
+    validate_item "is_empty: non-empty (should fail)" $(is_empty 'data')
+
+    validate_item "are_equal_str: equal" $(are_equal_str 'data' 'data')
+    validate_item "are_equal_str: different (should fail)" $(are_equal_str 'data' 'other')
+
+    validate_item "are_equal_str_ignore_case: same case" $(are_equal_str_ignore_case 'Data' 'Data')
+    validate_item "are_equal_str_ignore_case: different case" $(are_equal_str_ignore_case 'Data' 'data')
+    validate_item "are_equal_str_ignore_case: different (should fail)" $(are_equal_str_ignore_case 'Data' 'other')
+
+    validate_item "are_equal_num: equal" $(are_equal_num 42 42)
+    validate_item "are_equal_num: different (should fail)" $(are_equal_num 1 0)
+
+    validate_item "is_greater_than: greater" $(is_greater_than 2 1)
+    validate_item "is_greater_than: lesser (should fail)" $(is_greater_than 1 2)
+
+    validate_item "is_greater_than_or_equal: greater" $(is_greater_than_or_equal 2 1)
+    validate_item "is_greater_than_or_equal: equal" $(is_greater_than_or_equal 2 2)
+    validate_item "is_greater_than_or_equal: lesser (should fail)" $(is_greater_than_or_equal 1 2)
+
+    validate_item "is_less_than: lesser" $(is_less_than 1 2)
+    validate_item "is_less_than: greater (should fail)" $(is_less_than 2 1)
+
+    validate_item "is_less_than_or_equal: lesser" $(is_less_than_or_equal 1 2)
+    validate_item "is_less_than_or_equal: equal" $(is_less_than_or_equal 2 2)
+    validate_item "is_less_than_or_equal: greater (should fail)" $(is_less_than_or_equal 3 2)
+}
 
 test_assertions() {
     # Helper: run a command (or assertion helper) and forward its
@@ -264,13 +378,18 @@ test_assertions() {
     run_validate_item_fail "- cstm assert_is_less_than_or_equal" "$custom_err" assert_is_less_than_or_equal 1 0 "$custom_err"
 }
 
-declare -A my_workflow=(
+declare -A demos=(
     [demo_utils]="Utility functions"
     [demo_styled]="Styled output"
     [demo_ui_messages]="UI messages"
     [demo_system_info]="System information"
+)
+#flow_run demos
+
+declare -A tests=(
     [test_user_interactions]="User interaction tests"
+    [test_comparisons]="Comparison tests"
     [test_assertions]="Assertion tests"
     [test_validations]="Validation tests"
 )
-flow_run my_workflow
+flow_run tests
