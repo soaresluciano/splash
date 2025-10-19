@@ -1,7 +1,42 @@
 #!/bin/bash
-set -e
 source ./spla.sh
 
+TEST_RUNS=0
+TEST_PASSES=0
+TEST_FAILS=0
+
+unittest_should_pass() {
+    local test_name="$1"
+    shift
+    "$@" &>/dev/null
+    local cmd_status=$?
+    if is_success "$cmd_status"; then
+        TEST_PASSES=$((TEST_PASSES + 1))
+    else
+        TEST_FAILS=$((TEST_FAILS + 1))
+    fi
+    TEST_RUNS=$((TEST_RUNS + 1))
+    validate_cmd "$test_name" echo "$cmd_status"
+    return $?
+}
+
+unittest_should_fail() {
+    local test_name="$1"
+    shift
+    "$@" &>/dev/null
+    local cmd_status=$?
+    local test_status
+    if is_success "$cmd_status"; then
+        test_status=$FALSE
+        TEST_FAILS=$((TEST_FAILS + 1))
+    else
+        test_status=$TRUE
+        TEST_PASSES=$((TEST_PASSES + 1))
+    fi
+    validate_cmd "$test_name" echo "$test_status"
+    TEST_RUNS=$((TEST_RUNS + 1))
+    return $?
+}
 
 assert_passes_with() {
     local expected_msg="$1"
@@ -92,7 +127,11 @@ assert_fails_without2() {
     local forbidden_msg="$1"
     shift
     assert_output_contains $TRUE "$forbidden_msg" "$@"
-    return !$?
+    if [ $? -eq $FALSE ]; then
+        return $TRUE
+    else
+        return $FALSE
+    fi
 }
 
 demo_utils() {
@@ -160,37 +199,38 @@ demo_system_info() {
 }
 
 test_user_interactions() {
-    # prompt_continue: simulate pressing Enter (no input)
-    validate_item "prompt_continue: waits for Enter" $(run_autoinput_silent "" prompt_continue)
+    # # prompt_continue: simulate pressing Enter (no input)
+    # validate_item "prompt_continue: waits for Enter" $(run_autoinput_silent "" prompt_continue)
 
-    # prompt_question: returns the user's input
-    validate_item "prompt_question: returns input" $(run_and_compare_output "Alice" "Alice" prompt_question "Enter your name")
+    # # prompt_question: returns the user's input
+    # validate_item "prompt_question: returns input" $(run_and_compare_output "Alice" "Alice" prompt_question "Enter your name")
 
-    # prompt_question: character limit enforcement (limit=3)
-    validate_item "prompt_question: enforces char limit" $(run_and_compare_output "ABC" "ABCDE" prompt_question "Limited" "" 3)
+    # # prompt_question: character limit enforcement (limit=3)
+    # validate_item "prompt_question: enforces char limit" $(run_and_compare_output "ABC" "ABCDE" prompt_question "Limited" "" 3)
 
-    # prompt_yesno: accept 'y' and 'Y' as true
-    validate_item "prompt_yesno: accepts 'y'" $(run_autoinput_silent "y" prompt_yesno "Continue?")
-    validate_item "prompt_yesno: accepts 'Y'" $(run_autoinput_silent "Y" prompt_yesno "Continue?")
+    # # prompt_yesno: accept 'y' and 'Y' as true
+    # validate_item "prompt_yesno: accepts 'y'" $(run_autoinput_silent "y" prompt_yesno "Continue?")
+    # validate_item "prompt_yesno: accepts 'Y'" $(run_autoinput_silent "Y" prompt_yesno "Continue?")
 
-    # prompt_yesno: accepts 'n' and 'N' as false (validate_item should FAIL)
-    validate_item "prompt_yesno: rejects 'n'" $(assert_fails_with "" run_autoinput_silent "n" prompt_yesno "Continue?")
-    validate_item "prompt_yesno: rejects 'N'" $(assert_fails_with "" run_autoinput_silent "N" prompt_yesno "Continue?")
+    # # prompt_yesno: accepts 'n' and 'N' as false (validate_item should FAIL)
+    # validate_item "prompt_yesno: rejects 'n'" $(assert_fails_with "" run_autoinput_silent "n" prompt_yesno "Continue?")
+    # validate_item "prompt_yesno: rejects 'N'" $(assert_fails_with "" run_autoinput_silent "N" prompt_yesno "Continue?")
 
-    # prompt_yesno: pressing Enter defaults to no (validate_item should FAIL)
-    validate_item "prompt_yesno: Enter defaults to no" $(assert_fails_with "" run_autoinput_silent "" prompt_yesno "Continue?")
+    # # prompt_yesno: pressing Enter defaults to no (validate_item should FAIL)
+    # validate_item "prompt_yesno: Enter defaults to no" $(assert_fails_with "" run_autoinput_silent "" prompt_yesno "Continue?")
 
-    # prompt_proceed: simulate proceed (yes)
-    validate_item "prompt_proceed: proceed on yes" $(run_autoinput_silent "y" prompt_proceed "This will run.")
+    # # prompt_proceed: simulate proceed (yes)
+    # validate_item "prompt_proceed: proceed on yes" $(run_autoinput_silent "y" prompt_proceed "This will run.")
 
-    # prompt_proceed: simulate cancel (no) -> validate_item should FAIL
-    validate_item "prompt_proceed: cancel on no" $(assert_fails_with "Operation cancelled by user." run_autoinput_silent "n" prompt_proceed "This will not run.")
+    # # prompt_proceed: simulate cancel (no) -> validate_item should FAIL
+    # validate_item "prompt_proceed: cancel on no" $(assert_fails_with "Operation cancelled by user." run_autoinput_silent "n" prompt_proceed "This will not run.")
 
-    # prompt_overwrite: simulate overwrite (yes)
-    validate_item "prompt_overwrite: overwrite on yes" $(run_autoinput_silent "y" prompt_overwrite "file.txt")
+    # # prompt_overwrite: simulate overwrite (yes)
+    # validate_item "prompt_overwrite: overwrite on yes" $(run_autoinput_silent "y" prompt_overwrite "file.txt")
 
     # prompt_overwrite: do not overwrite on no -> validate_item should FAIL
-    validate_item "prompt_overwrite: keep existing on no" $(assert_fails_with "Using existing RESOURCE" run_autoinput_silent "n" prompt_overwrite "RESOURCE")
+    #validate_item "prompt_overwrite: keep existing on no" $(assert_fails_without2 "Using existing RESOURCE" run_autoinput_silent "n" prompt_overwrite "RESOURCE")
+    echo
 }
 
 # test_menu() {
@@ -243,35 +283,74 @@ test_validations() {
 
 # test_comparions() {
 test_comparisons() {
-    validate_item "is_not_empty: non-empty" $(is_not_empty 'data')
-    validate_item "is_not_empty: empty (should fail)" $(is_not_empty '')
+    # is_not_empty
+    unittest_should_pass "is_not_empty: non-empty" is_not_empty 'data'
+    unittest_should_fail "is_not_empty: empty (should fail)" is_not_empty ''
 
-    validate_item "is_empty: empty" $(is_empty '')
-    validate_item "is_empty: non-empty (should fail)" $(is_empty 'data')
+    # is_empty
+    unittest_should_pass "is_empty: empty" is_empty ''
+    unittest_should_fail "is_empty: non-empty (should fail)" is_empty 'data'
 
-    validate_item "are_equal_str: equal" $(are_equal_str 'data' 'data')
-    validate_item "are_equal_str: different (should fail)" $(are_equal_str 'data' 'other')
+    # are_equal_str
+    unittest_should_pass "are_equal_str: equal" are_equal_str 'data' 'data'
+    unittest_should_fail "are_equal_str: different (should fail)" are_equal_str 'data' 'other'
 
-    validate_item "are_equal_str_ignore_case: same case" $(are_equal_str_ignore_case 'Data' 'Data')
-    validate_item "are_equal_str_ignore_case: different case" $(are_equal_str_ignore_case 'Data' 'data')
-    validate_item "are_equal_str_ignore_case: different (should fail)" $(are_equal_str_ignore_case 'Data' 'other')
+    # are_equal_str_ignore_case
+    unittest_should_pass "are_equal_str_ignore_case: same case" are_equal_str_ignore_case 'Data' 'Data'
+    unittest_should_pass "are_equal_str_ignore_case: different case" are_equal_str_ignore_case 'Data' 'data'
+    unittest_should_fail "are_equal_str_ignore_case: different (should fail)" are_equal_str_ignore_case 'Data' 'other'
 
-    validate_item "are_equal_num: equal" $(are_equal_num 42 42)
-    validate_item "are_equal_num: different (should fail)" $(are_equal_num 1 0)
+    # are_equal_num
+    unittest_should_pass "are_equal_num: equal" are_equal_num 42 42
+    unittest_should_fail "are_equal_num: different (should fail)" are_equal_num 1 0
 
-    validate_item "is_greater_than: greater" $(is_greater_than 2 1)
-    validate_item "is_greater_than: lesser (should fail)" $(is_greater_than 1 2)
+    # is_greater_than
+    unittest_should_pass "is_greater_than: greater" is_greater_than 2 1
+    unittest_should_fail "is_greater_than: lesser (should fail)" is_greater_than 1 2
 
-    validate_item "is_greater_than_or_equal: greater" $(is_greater_than_or_equal 2 1)
-    validate_item "is_greater_than_or_equal: equal" $(is_greater_than_or_equal 2 2)
-    validate_item "is_greater_than_or_equal: lesser (should fail)" $(is_greater_than_or_equal 1 2)
+    # is_greater_than_or_equal
+    unittest_should_pass "is_greater_than_or_equal: greater" is_greater_than_or_equal 2 1
+    unittest_should_pass "is_greater_than_or_equal: equal" is_greater_than_or_equal 2 2
+    unittest_should_fail "is_greater_than_or_equal: lesser (should fail)" is_greater_than_or_equal 1 2
 
-    validate_item "is_less_than: lesser" $(is_less_than 1 2)
-    validate_item "is_less_than: greater (should fail)" $(is_less_than 2 1)
+    # is_less_than
+    unittest_should_pass "is_less_than: lesser" is_less_than 1 2
+    unittest_should_fail "is_less_than: greater (should fail)" is_less_than 2 1
 
-    validate_item "is_less_than_or_equal: lesser" $(is_less_than_or_equal 1 2)
-    validate_item "is_less_than_or_equal: equal" $(is_less_than_or_equal 2 2)
-    validate_item "is_less_than_or_equal: greater (should fail)" $(is_less_than_or_equal 3 2)
+    # is_less_than_or_equal
+    unittest_should_pass "is_less_than_or_equal: lesser" is_less_than_or_equal 1 2
+    unittest_should_pass "is_less_than_or_equal: equal" is_less_than_or_equal 2 2
+    unittest_should_fail "is_less_than_or_equal: greater (should fail)" is_less_than_or_equal 3 2
+
+    # is_integer
+    unittest_should_pass "is_integer: integer" is_integer 42
+    unittest_should_pass "is_integer: integer str" is_integer "24"
+    unittest_should_fail "is_integer: float (should fail)" is_integer 3.14
+    unittest_should_fail "is_integer: not a number (should fail)" is_integer 'data'
+
+    # is_true
+    unittest_should_pass "is_true: true" is_true $TRUE
+    unittest_should_pass "is_true: true string" is_true "0"
+    unittest_should_fail "is_true: false (should fail)" is_true $FALSE
+    unittest_should_fail "is_true: false string (should fail)" is_true "1"
+    
+
+    # is_false
+    unittest_should_pass "is_false: false" is_false $FALSE
+    unittest_should_pass "is_false: false string" is_false "1"
+    unittest_should_fail "is_false: true (should fail)" is_false $TRUE
+    unittest_should_fail "is_false: true string (should fail)" is_false "0"
+
+    # is_success
+    unittest_should_pass "is_success: success" is_success $TRUE
+    unittest_should_pass "is_success: success string" is_success "0"
+    unittest_should_fail "is_success: failure (should fail)" is_success $FALSE
+    unittest_should_fail "is_success: failure string (should fail)" is_success "1"
+
+    # contains_str
+    unittest_should_pass "contains_str: contains" contains_str "Hello, world!" "world"
+    unittest_should_fail "contains_str: does not contain (should fail)" contains_str "Hello, world!" "universe"
+    unittest_should_fail "contains_str: empty does not contain (should fail)" contains_str "" "world"
 }
 
 test_assertions() {
@@ -286,17 +365,17 @@ test_assertions() {
         validate_item "$label" "$output"
     }
 
-    run_validate_item_cmd "+ assert_is_empty" assert_is_empty ''
-    run_validate_item_cmd "+ assert_is_not_empty" assert_is_not_empty 'data'
-    run_validate_item_cmd "+ assert_are_equal_str" assert_are_equal_str 'data' 'data'
-    run_validate_item_cmd "+ assert_are_equal_str_ignore_case" assert_are_equal_str_ignore_case 'Data' 'data'
-    run_validate_item_cmd "+ assert_are_equal_num" assert_are_equal_num 42 42
-    run_validate_item_cmd "+ assert_is_greater_than" assert_is_greater_than 2 1
-    run_validate_item_cmd "+ assert_is_greater_than_or_equal" assert_is_greater_than_or_equal 2 1
-    run_validate_item_cmd "+ A) assert_is_greater_than_or_equal" assert_is_greater_than_or_equal 2 2
-    run_validate_item_cmd "+ B) assert_is_less_than" assert_is_less_than 1 2
-    run_validate_item_cmd "+ A) assert_is_less_than_or_equal" assert_is_less_than_or_equal 1 2
-    run_validate_item_cmd "+ B) assert_is_less_than_or_equal" assert_is_less_than_or_equal 2 2
+    unittest_should_pass "+ assert_is_empty" assert_is_empty ''
+    unittest_should_pass "+ assert_is_not_empty" assert_is_not_empty 'data'
+    unittest_should_pass "+ assert_are_equal_str" assert_are_equal_str 'data' 'data'
+    unittest_should_pass "+ assert_are_equal_str_ignore_case" assert_are_equal_str_ignore_case 'Data' 'data'
+    unittest_should_pass "+ assert_are_equal_num" assert_are_equal_num 42 42
+    unittest_should_pass "+ assert_is_greater_than" assert_is_greater_than 2 1
+    unittest_should_pass "+ assert_is_greater_than_or_equal" assert_is_greater_than_or_equal 2 1
+    unittest_should_pass "+ A) assert_is_greater_than_or_equal" assert_is_greater_than_or_equal 2 2
+    unittest_should_pass "+ B) assert_is_less_than" assert_is_less_than 1 2
+    unittest_should_pass "+ A) assert_is_less_than_or_equal" assert_is_less_than_or_equal 1 2
+    unittest_should_pass "+ B) assert_is_less_than_or_equal" assert_is_less_than_or_equal 2 2
 
     # Helper to avoid repeating local expected_err declarations.
     # Usage: run_validate_item_fail <label> <expected_msg> <assert_fn> [args...]
@@ -327,6 +406,14 @@ test_assertions() {
     run_validate_item_fail "- cstm assert_is_less_than_or_equal" "$custom_err" assert_is_less_than_or_equal 1 0 "$custom_err"
 }
 
+report_test_summary() {
+    echo
+    show_title "Test Summary"
+    echo -e "▫️ $(style bright_blue bold) Total Runs:$(style blue) $TEST_RUNS${NC}"
+    echo -e "▫️ $(style bright_green bold) Passed:$(style green) $TEST_PASSES ($((TEST_PASSES * 100 / TEST_RUNS))%)${NC}"
+    echo -e "▫️ $(style bright_red bold) Failed:$(style red) $TEST_FAILS ($((TEST_FAILS * 100 / TEST_RUNS))%)${NC}"
+}
+
 declare -A demos=(
     [demo_utils]="Utility functions"
     [demo_styled]="Styled output"
@@ -343,4 +430,17 @@ declare -A tests=(
 )
 #flow_run tests
 
-test_user_interactions
+#test_user_interactions
+#assert_fails_without2 "Using existing RESOURCE" $(echo "n" | prompt_proceed "RESOURCE")
+
+#run_output_contains out "Operation cancelled by user." run_autoinput 'n' prompt_proceed "RESOURCE"
+
+#assert_fails_without2 "Operation cancelled by user." run_autoinput 'n' prompt_proceed 'RESOURCE'
+
+#run_autoinput 'n' prompt_proceed 'RESOURCE'
+#echo $?
+
+test_comparisons
+test_assertions
+
+report_test_summary

@@ -925,6 +925,32 @@ system_display_server() {
 # VALIDATIONS
 #==============================================================================
 
+validate_cmd() {
+    local description="$1"
+    shift
+    local command="$@"
+    validate_cmd_with_suggestion "$description" "" "$command"
+    return $?
+}
+
+validate_cmd_with_suggestion() {
+    local description="$1"
+    local fix_suggestion="$2"
+    shift 2
+    local command="$@"
+    echo -n "🔍 Validating $description..."
+    if eval "$command" &>/dev/null; then
+        show_success "OK"
+        return 0
+    else
+        show_error "FAIL"
+        if is_not_empty "$fix_suggestion"; then
+            show_suggestion "Suggestion: $fix_suggestion"
+        fi
+        return 1
+    fi
+}
+
 # Validates a single item with a description, validation command, and optional fix suggestion
 # Usage: validate_item "Git installation" "command_exists git" "Install Git using your package manager"
 # Parameters:
@@ -1050,16 +1076,6 @@ are_equal_num() {
     [ "$1" -eq "$2" ]
 }
 
-# Compares two values for equality, trying numeric comparison first, then string comparison
-# Returns TRUE if values are equal (either numerically or as strings), FALSE otherwise
-# Usage: if are_equal "10" "10"; then ... fi
-# Parameters:
-#   value1: First value to compare
-#   value2: Second value to compare
-are_equal() {
-    are_equal_num "$1" "$2" || are_equal_str "$1" "$2"
-}
-
 # Checks if the first number is arithmetically greater than the second
 # Treats both parameters as integers and performs numeric comparison
 # Returns TRUE if first number > second number, FALSE otherwise
@@ -1108,22 +1124,52 @@ is_less_than_or_equal() {
     [ "$1" -le "$2" ]
 }
 
+# Checks if a string represents a valid integer number
+# Returns TRUE if the string is a valid integer, FALSE otherwise
+# Usage: if is_integer "$variable"; then ... fi
+# Parameters:
+#   value: Value to check
+is_integer() {
+    [[ "$1" =~ ^-?[0-9]+$ ]]
+}
+
+# Checks if a value represents TRUE
+# Returns TRUE if the value is equal to TRUE constant, FALSE otherwise
+# Usage: if is_true "$variable"; then ... fi
+# Parameters:
+#   value: Value to check
 is_true() {
-    are_equal "$1" "$TRUE"
+    are_equal_str "$1" "$TRUE"
 }
 
+# Checks if a value represents FALSE
+# Returns TRUE if the value is equal to FALSE constant, FALSE otherwise
+# Usage: if is_false "$variable"; then ... fi
+# Parameters:
+#   value: Value to check
 is_false() {
-    are_equal "$1" "$FALSE"
+    are_equal_str "$1" "$FALSE"
 }
 
+# Checks if a value represents SUCCESS (TRUE)
+# Alias for is_true function
+# Usage: if is_success "$variable"; then ... fi
+# Parameters:
+#   value: Value to check
 is_success() {
     is_true "$1"
 }
 
+# Checks if a value represents FAILURE (FALSE)
+# Alias for is_false function
+# Usage: if is_failure "$variable"; then ... fi
+# Parameters:
+#   value: Value to check
 contains_str() {
     local string="$1"
     local substring="$2"
-    echo "$string" | grep -qF "$substring"
+    printf '%s' "$string" | grep -qF -- "$substring"
+    return $?
 }
 
 # ASSERTIONS
@@ -1280,9 +1326,11 @@ assert_output_contains() {
     local expected_status="$1"
     local expected_msg="$2"
     shift 2
-    local result=$(run_output_contains actual_status "$expected_msg" "$@")
+    local actual_status
+    run_output_contains actual_status "$expected_msg" "$@"
+    local result=$?
     local error_message="The command returned an unexpected status: $actual_status"
-    are_equal "$actual_status" "$expected_status" || { show_error "$error_message"; return $FALSE; }
+    are_equal_num "$actual_status" "$expected_status" || { show_error "$error_message"; return $FALSE; }
     return $result
 }
 
@@ -1368,6 +1416,7 @@ run_autoinput() {
     local input="$1"
     shift
     printf '%s\n' "$input" | "$@"
+    return "$?"
 }
 
 # Simulates interactive input for a command that runs silently
@@ -1417,8 +1466,9 @@ run_output_contains() {
     local __outvar="$1"
     local expected_substring="$2"
     shift 2
+    local actual_output
     run_and_capture_output actual_output "$@"
-    status=$?
+    local status=$?
     eval "$__outvar=$status"
     contains_str "$actual_output" "$expected_substring"
     return $?
@@ -1440,6 +1490,7 @@ run_output_compare() {
     local __outvar="$1"
     local expected_output="$2"
     shift 2
+    local actual_output
     run_and_capture_output actual_output "$@"
     local status=$?
     eval "$__outvar=$status"
@@ -1465,8 +1516,9 @@ run_autoinput_output_compare() {
     local input="$2"
     local expected_output="$3"
     shift 3
+    local actual_output
     run_and_capture_output actual_output run_autoinput "$input" "$@"
-    status=$?
+    local status=$?
     eval "$__outvar=$status"
     are_equal_str "$expected_output" "$actual_output"
     return $?
@@ -1572,17 +1624,17 @@ _build_args() {
 
 # Returns TRUE if sudo is enabled, FALSE otherwise
 _sudo_is_on() {
-    are_equal "$_USE_SUDO" $TRUE
+    are_equal_num "$_USE_SUDO" $TRUE
 }
 
 # Returns TRUE if logging is enabled, FALSE otherwise
 _log_is_on() {
-    are_equal "$_USE_LOG" $TRUE
+    are_equal_num "$_USE_LOG" $TRUE
 }
 
 # Returns TRUE if sudo is enabled, FALSE otherwise
 _ask_is_on() {
-    are_equal "$_USE_ASK" $TRUE
+    are_equal_num "$_USE_ASK" $TRUE
 }
 
 #==============================================================================
