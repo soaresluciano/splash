@@ -1,0 +1,108 @@
+    # prompt_continue
+    #   test case:
+    #   - check that it shows the correct message
+    #   - check that it waits for user input
+    #   - simulate user pressing Enter (no input)
+
+    # prompt_question
+    #   test case:
+    #   - check that it shows the correct message
+    #   - check that it shows the options (if provided)
+
+    #   test case:
+    #   - check that it shows the correct message
+    #   - check that it DOES NOT shows any option (if not provided)
+
+    #   test case:
+    #   - check that it waits for user input
+    #   - simulate user providing input
+    #   - verify that the returned value matches the input
+
+    #  test case:
+    #  - check the character limit enforcement (if specified)
+
+    #  test case:
+    #  - check the character limit IS NOT enforced (if not specified)
+
+    # prompt_yesno
+    #   test case:
+    #   - check that it shows the correct message
+    #   - check that it shows the options [y/N]
+    #   - check that it waits for user input
+
+    #   test case:
+    #   - simulate user input 'y' and verify that it returns true
+    #   - simulate user input 'Y' and verify that it returns true
+
+    #   test case:
+    #   - simulate user input 'n' and verify that it returns false
+    #   - simulate user input 'N' and verify that it returns false
+
+    #   test case:
+    #   - simulate user pressing Enter (no input) and verify that it returns false (default)
+
+    # prompt_proceed
+    #   test case:
+    #   - check that it shows the correct message
+    #   - check that it shows the options [y/N]
+    #   - check that it waits for user input
+
+    #   test case:
+    #   - simulate user input 'y' and verify that it returns true
+
+    #   test case:
+    #   - simulate user input 'n' and verify that it returns false
+    #   - simulate user pressing Enter (no input) and verify that it returns false (default)
+    #   - verify that it shows the warning message when user chooses not to proceed
+
+    # prompt_overwrite
+    #   test case:
+    #   - check that it shows the correct message when file exists
+    #   - check that it shows the options [y/N]
+    #   - check that it waits for user input
+
+    #   test case:
+    #   - simulate user input 'y' and verify that it returns true
+    #   - simulate user input 'n' and verify that it returns false
+    #   - simulate user pressing Enter (no input) and verify that it returns false (default)
+    #   - verify that it shows the warning message when user chooses not to proceed
+
+    # prompt_overwrite
+    #   test case:
+    #   - check that it shows the correct message when file exists
+    #   - check that it shows the options [y/N]
+    #   - check that it waits for user input
+
+    #   test case:
+    #   - simulate user input 'y' and verify that it returns true
+    #   - check that it shows the success message when user chooses to overwrite
+
+    #   test case:
+    #   - simulate user input 'n' and verify that it returns false
+    #   - simulate user pressing Enter (no input) and verify that it returns false (default)
+    #   - verify that it shows the warning message when user chooses not to proceed
+
+    # -- OLD CODE EXAMPLES --
+    # result=$(prompt_question "Enter your name" <<< "Alice")
+    # expected="Alice"
+    # if [[ "$result" == "$expected" ]]; then
+    #     echo "prompt_question test: PASS"
+    # else
+    #     echo "prompt_question test: FAIL (got '$result', expected '$expected')"
+    # fi
+
+    # if prompt_yesno "Do you want to continue?"; then
+    #     show_success "You chose to continue."
+    # else
+    #     show_warning "You chose not to continue."
+    # fi
+
+    # if prompt_proceed "This action will delete all temporary files."; then
+    #     show_success "Proceeding with the action."
+    # else
+    #     show_warning "Action cancelled."
+    # fi
+    # Helpers to run interactive functions with simulated input and
+    # return a literal exit code string ("0" or "1") so it can be
+    # passed to validate_item without providing the unit under test
+    # as a raw command string.

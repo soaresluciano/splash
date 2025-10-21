@@ -19,3 +19,10 @@ noyes = no is default
 validate_item
     - the last item should be the command to avoid use string
     
+
+redirects
+ - run on std and log
+
+is_num
+
+replace icons by ascii
