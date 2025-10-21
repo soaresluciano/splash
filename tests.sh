@@ -38,6 +38,31 @@ unittest_should_fail() {
     return $?
 }
 
+unittest_should_fail_with_msg() {
+    local test_name="$1"
+    local expected_msg="$2"
+    shift 2
+    local output
+    output=$("$@" 2>&1)
+    local cmd_status=$?
+    local test_status
+    if is_success "$cmd_status"; then
+        test_status=$FALSE
+        TEST_FAILS=$((TEST_FAILS + 1))
+    else
+        if printf '%s' "$output" | grep -F -q -- "$expected_msg"; then
+            test_status=$TRUE
+            TEST_PASSES=$((TEST_PASSES + 1))
+        else
+            test_status=$FALSE
+            TEST_FAILS=$((TEST_FAILS + 1))
+        fi
+    fi
+    validate_cmd "$test_name" echo "$test_status"
+    TEST_RUNS=$((TEST_RUNS + 1))
+    return $?
+}
+
 assert_passes_with() {
     local expected_msg="$1"
     shift
@@ -276,6 +301,7 @@ test_validations() {
 
     # Extra edge case: empty string as value (should be treated as blank/OK)
     run_validate_item_test assert_passes_with "$success_msg" "Receives empty string" ""
+
 }
 
 # test_network_operations() {
@@ -333,7 +359,6 @@ test_comparisons() {
     unittest_should_pass "is_true: true string" is_true "0"
     unittest_should_fail "is_true: false (should fail)" is_true $FALSE
     unittest_should_fail "is_true: false string (should fail)" is_true "1"
-    
 
     # is_false
     unittest_should_pass "is_false: false" is_false $FALSE
@@ -354,17 +379,6 @@ test_comparisons() {
 }
 
 test_assertions() {
-    # Helper: run a command (or assertion helper) and forward its
-    # captured output to validate_item. This preserves calling
-    # validate_item with the label and a separate output arg instead of
-    # building a single concatenated string.
-    run_validate_item_cmd() {
-        local label="$1"; shift
-        local output
-        output=$("$@" 2>&1)
-        validate_item "$label" "$output"
-    }
-
     unittest_should_pass "+ assert_is_empty" assert_is_empty ''
     unittest_should_pass "+ assert_is_not_empty" assert_is_not_empty 'data'
     unittest_should_pass "+ assert_are_equal_str" assert_are_equal_str 'data' 'data'
@@ -377,33 +391,25 @@ test_assertions() {
     unittest_should_pass "+ A) assert_is_less_than_or_equal" assert_is_less_than_or_equal 1 2
     unittest_should_pass "+ B) assert_is_less_than_or_equal" assert_is_less_than_or_equal 2 2
 
-    # Helper to avoid repeating local expected_err declarations.
-    # Usage: run_validate_item_fail <label> <expected_msg> <assert_fn> [args...]
-    run_validate_item_fail() {
-        local label="$1"; shift
-        local expected_msg="$1"; shift
-        run_validate_item_cmd "$label" assert_fails_with "$expected_msg" "$@"
-    }
-
     local custom_err="Custom error: Value is not empty."
-    run_validate_item_fail "- assert_is_empty" "Assertion failed: Expected empty value, but got non-empty." assert_is_empty 'data'
-    run_validate_item_fail "- cstm assert_is_empty" "$custom_err" assert_is_empty 'data' "$custom_err"
-    run_validate_item_fail "- assert_is_not_empty" "Assertion failed: Expected non-empty value, but got empty." assert_is_not_empty ''
-    run_validate_item_fail "- cstm assert_is_not_empty" "$custom_err" assert_is_not_empty '' "$custom_err"
-    run_validate_item_fail "- assert_are_equal_str" "Assertion failed: Expected 'data' to equal 'other'." assert_are_equal_str 'data' 'other'
-    run_validate_item_fail "- cstm assert_are_equal_str" "$custom_err" assert_are_equal_str 'data' 'other' "$custom_err"
-    run_validate_item_fail "- assert_are_equal_str_ignore_case" "Assertion failed: Expected 'Data' to equal 'other' (case-insensitive)." assert_are_equal_str_ignore_case 'Data' 'other'
-    run_validate_item_fail "- cstm assert_are_equal_str_ignore_case" "$custom_err" assert_are_equal_str_ignore_case 'Data' 'other' "$custom_err"
-    run_validate_item_fail "- assert_are_equal_num" "Assertion failed: Expected '1' to equal '0'." assert_are_equal_num 1 0
-    run_validate_item_fail "- cstm assert_are_equal_num" "$custom_err" assert_are_equal_num 1 0 "$custom_err"
-    run_validate_item_fail "- assert_is_greater_than" "Assertion failed: Expected '0' to be greater than '1'." assert_is_greater_than 0 1
-    run_validate_item_fail "- cstm assert_is_greater_than" "$custom_err" assert_is_greater_than 0 1 "$custom_err"
-    run_validate_item_fail "- assert_is_greater_than_or_equal" "Assertion failed: Expected '0' to be greater than or equal to '1'." assert_is_greater_than_or_equal 0 1
-    run_validate_item_fail "- cstm assert_is_greater_than_or_equal" "$custom_err" assert_is_greater_than_or_equal 0 1 "$custom_err"
-    run_validate_item_fail "- assert_is_less_than" "Assertion failed: Expected '1' to be less than '0'." assert_is_less_than 1 0
-    run_validate_item_fail "- cstm assert_is_less_than" "$custom_err" assert_is_less_than 1 0 "$custom_err"
-    run_validate_item_fail "- assert_is_less_than_or_equal" "Assertion failed: Expected '1' to be less than or equal to '0'." assert_is_less_than_or_equal 1 0
-    run_validate_item_fail "- cstm assert_is_less_than_or_equal" "$custom_err" assert_is_less_than_or_equal 1 0 "$custom_err"
+    unittest_should_fail_with_msg "- assert_is_empty" "Assertion failed: Expected empty value, but got non-empty." assert_is_empty 'data'
+    unittest_should_fail_with_msg "- cstm assert_is_empty" "$custom_err" assert_is_empty 'data' "$custom_err"
+    unittest_should_fail_with_msg "- assert_is_not_empty" "Assertion failed: Expected non-empty value, but got empty." assert_is_not_empty ''
+    unittest_should_fail_with_msg "- cstm assert_is_not_empty" "$custom_err" assert_is_not_empty '' "$custom_err"
+    unittest_should_fail_with_msg "- assert_are_equal_str" "Assertion failed: Expected 'data' to equal 'other'." assert_are_equal_str 'data' 'other'
+    unittest_should_fail_with_msg "- cstm assert_are_equal_str" "$custom_err" assert_are_equal_str 'data' 'other' "$custom_err"
+    unittest_should_fail_with_msg "- assert_are_equal_str_ignore_case" "Assertion failed: Expected 'Data' to equal 'other' (case-insensitive)." assert_are_equal_str_ignore_case 'Data' 'other'
+    unittest_should_fail_with_msg "- cstm assert_are_equal_str_ignore_case" "$custom_err" assert_are_equal_str_ignore_case 'Data' 'other' "$custom_err"
+    unittest_should_fail_with_msg "- assert_are_equal_num" "Assertion failed: Expected '1' to equal '0'." assert_are_equal_num 1 0
+    unittest_should_fail_with_msg "- cstm assert_are_equal_num" "$custom_err" assert_are_equal_num 1 0 "$custom_err"
+    unittest_should_fail_with_msg "- assert_is_greater_than" "Assertion failed: Expected '0' to be greater than '1'." assert_is_greater_than 0 1
+    unittest_should_fail_with_msg "- cstm assert_is_greater_than" "$custom_err" assert_is_greater_than 0 1 "$custom_err"
+    unittest_should_fail_with_msg "- assert_is_greater_than_or_equal" "Assertion failed: Expected '0' to be greater than or equal to '1'." assert_is_greater_than_or_equal 0 1
+    unittest_should_fail_with_msg "- cstm assert_is_greater_than_or_equal" "$custom_err" assert_is_greater_than_or_equal 0 1 "$custom_err"
+    unittest_should_fail_with_msg "- assert_is_less_than" "Assertion failed: Expected '1' to be less than '0'." assert_is_less_than 1 0
+    unittest_should_fail_with_msg "- cstm assert_is_less_than" "$custom_err" assert_is_less_than 1 0 "$custom_err"
+    unittest_should_fail_with_msg "- assert_is_less_than_or_equal" "Assertion failed: Expected '1' to be less than or equal to '0'." assert_is_less_than_or_equal 1 0
+    unittest_should_fail_with_msg "- cstm assert_is_less_than_or_equal" "$custom_err" assert_is_less_than_or_equal 1 0 "$custom_err"
 }
 
 report_test_summary() {
