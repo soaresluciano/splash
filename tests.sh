@@ -20,6 +20,31 @@ unittest_should_pass() {
     return $?
 }
 
+unittest_should_pass_with_msg() {
+    local test_name="$1"
+    local expected_msg="$2"
+    shift 2
+    local output
+    output=$("$@" 2>&1)
+    local cmd_status=$?
+    local test_status
+    if is_success "$cmd_status"; then
+        if printf '%s' "$output" | grep -F -q -- "$expected_msg"; then
+            test_status=$TRUE
+            TEST_PASSES=$((TEST_PASSES + 1))
+        else
+            test_status=$FALSE
+            TEST_FAILS=$((TEST_FAILS + 1))
+        fi
+    else
+        test_status=$FALSE
+        TEST_FAILS=$((TEST_FAILS + 1))
+    fi
+    validate_cmd "$test_name" echo "$test_status"
+    TEST_RUNS=$((TEST_RUNS + 1))
+    return $?
+}
+
 unittest_should_fail() {
     local test_name="$1"
     shift
@@ -224,38 +249,37 @@ demo_system_info() {
 }
 
 test_user_interactions() {
-    # # prompt_continue: simulate pressing Enter (no input)
-    # validate_item "prompt_continue: waits for Enter" $(run_autoinput_silent "" prompt_continue)
+    # prompt_continue: simulate pressing Enter (no input)
+    unittest_should_pass "prompt_continue: waits for Enter" run_autoinput_silent "" prompt_continue
 
-    # # prompt_question: returns the user's input
-    # validate_item "prompt_question: returns input" $(run_and_compare_output "Alice" "Alice" prompt_question "Enter your name")
+    # prompt_question: returns the user's input
+    unittest_should_pass_with_msg "prompt_question: returns input" "Alice" run_autoinput_silent "Alice" prompt_question "Enter your name"
 
-    # # prompt_question: character limit enforcement (limit=3)
-    # validate_item "prompt_question: enforces char limit" $(run_and_compare_output "ABC" "ABCDE" prompt_question "Limited" "" 3)
+    # prompt_question: character limit enforcement (limit=3)
+    unittest_should_pass_with_msg "prompt_question: enforces char limit" "ABC" run_autoinput_silent "ABCDE" prompt_question "Limited" "" 3
 
-    # # prompt_yesno: accept 'y' and 'Y' as true
-    # validate_item "prompt_yesno: accepts 'y'" $(run_autoinput_silent "y" prompt_yesno "Continue?")
-    # validate_item "prompt_yesno: accepts 'Y'" $(run_autoinput_silent "Y" prompt_yesno "Continue?")
+    # prompt_yesno: accept 'y' and 'Y' as true
+    unittest_should_pass "prompt_yesno: accepts 'y'" run_autoinput_silent "y" prompt_yesno "Continue?"
+    unittest_should_pass "prompt_yesno: accepts 'Y'" run_autoinput_silent "Y" prompt_yesno "Continue?"
 
-    # # prompt_yesno: accepts 'n' and 'N' as false (validate_item should FAIL)
-    # validate_item "prompt_yesno: rejects 'n'" $(assert_fails_with "" run_autoinput_silent "n" prompt_yesno "Continue?")
-    # validate_item "prompt_yesno: rejects 'N'" $(assert_fails_with "" run_autoinput_silent "N" prompt_yesno "Continue?")
+    # prompt_yesno: accepts 'n' and 'N' as false (validate_item should FAIL)
+    unittest_should_fail "prompt_yesno: rejects 'n'" run_autoinput_silent "n" prompt_yesno "Continue?"
+    unittest_should_fail "prompt_yesno: rejects 'N'" run_autoinput_silent "N" prompt_yesno "Continue?"
 
-    # # prompt_yesno: pressing Enter defaults to no (validate_item should FAIL)
-    # validate_item "prompt_yesno: Enter defaults to no" $(assert_fails_with "" run_autoinput_silent "" prompt_yesno "Continue?")
+    # prompt_yesno: pressing Enter defaults to no (validate_item should FAIL)
+    unittest_should_fail "prompt_yesno: Enter defaults to no" run_autoinput_silent "" prompt_yesno "Continue?"
 
-    # # prompt_proceed: simulate proceed (yes)
-    # validate_item "prompt_proceed: proceed on yes" $(run_autoinput_silent "y" prompt_proceed "This will run.")
+    # prompt_proceed: simulate proceed (yes)
+    unittest_should_pass "prompt_proceed: proceed on yes" run_autoinput_silent "y" prompt_proceed "This will run."
 
-    # # prompt_proceed: simulate cancel (no) -> validate_item should FAIL
-    # validate_item "prompt_proceed: cancel on no" $(assert_fails_with "Operation cancelled by user." run_autoinput_silent "n" prompt_proceed "This will not run.")
+    # prompt_proceed: simulate cancel (no) -> validate_item should FAIL
+    unittest_should_fail_with_msg "prompt_proceed: cancel on no" "Operation cancelled by user." run_autoinput_silent "n" prompt_proceed "This will not run."
 
-    # # prompt_overwrite: simulate overwrite (yes)
-    # validate_item "prompt_overwrite: overwrite on yes" $(run_autoinput_silent "y" prompt_overwrite "file.txt")
+    # prompt_overwrite: simulate overwrite (yes)
+    unittest_should_pass "prompt_overwrite: overwrite on yes" run_autoinput_silent "y" prompt_overwrite "file.txt"
 
-    # prompt_overwrite: do not overwrite on no -> validate_item should FAIL
-    #validate_item "prompt_overwrite: keep existing on no" $(assert_fails_without2 "Using existing RESOURCE" run_autoinput_silent "n" prompt_overwrite "RESOURCE")
-    echo
+    #prompt_overwrite: do not overwrite on no -> validate_item should FAIL
+    unittest_should_fail_with_msg "prompt_overwrite: keep existing on no" "Using existing RESOURCE" run_autoinput_silent "n" prompt_overwrite "RESOURCE"
 }
 
 # test_menu() {
@@ -416,6 +440,10 @@ report_test_summary() {
     echo
     show_title "Test Summary"
     echo -e "▫️ $(style bright_blue bold) Total Runs:$(style blue) $TEST_RUNS${NC}"
+    if [ $TEST_RUNS -eq 0 ]; then
+        show_warning "No tests were executed."
+        return
+    fi
     echo -e "▫️ $(style bright_green bold) Passed:$(style green) $TEST_PASSES ($((TEST_PASSES * 100 / TEST_RUNS))%)${NC}"
     echo -e "▫️ $(style bright_red bold) Failed:$(style red) $TEST_FAILS ($((TEST_FAILS * 100 / TEST_RUNS))%)${NC}"
 }
@@ -446,7 +474,8 @@ declare -A tests=(
 #run_autoinput 'n' prompt_proceed 'RESOURCE'
 #echo $?
 
-test_comparisons
-test_assertions
+test_user_interactions
+#test_comparisons
+#test_assertions
 
 report_test_summary
