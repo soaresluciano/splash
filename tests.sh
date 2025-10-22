@@ -60,7 +60,7 @@ _test_cmd_output_contains() {
     local test_result="$?"
 
     local contains_msg=$FALSE
-    is_success $test_result && printf '%s' "$actual_output" | grep -F -q -- "$expected_msg" && contains_msg=$TRUE
+    is_success $test_result && contains_str "$actual_output" "$expected_msg" && contains_msg=$TRUE
 
     local test_details=""
     ! is_success $contains_msg && test_details="The expected message ($expected_msg) was not found"
