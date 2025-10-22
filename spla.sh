@@ -197,6 +197,28 @@ show_question () {
     fi
 }
 
+show_test_result() {
+    local description="$1"
+    local result="$2"
+    local details="${3:-}"
+    local fix="${4:-}"
+
+    echo -n "🔍 $description: "
+    if is_success $result; then
+        show_success "OK"
+    else
+        show_error "FAIL"
+        if is_not_empty "$fix"; then
+            show_suggestion "$fix"
+        fi
+    fi
+
+    if is_not_empty "$details"; then
+        show_log "$details"
+    fi
+    return $result
+}
+
 # Shows an attention banner - for bringing attention to very important notices
 # Usage: banner_attention <message>
 # Parameters:
@@ -1431,7 +1453,7 @@ run_autoinput_silent() {
     shift
     # suppress output, and print exit code only.
     run_autoinput "$input" "$@" >/dev/null 2>&1
-    printf '%s' "$?"
+    return "$?"
 }
 
 # Runs a command, captures its output in a variable, and returns the exit status

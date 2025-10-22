@@ -16,7 +16,7 @@ unittest_should_pass() {
         TEST_FAILS=$((TEST_FAILS + 1))
     fi
     TEST_RUNS=$((TEST_RUNS + 1))
-    validate_cmd "$test_name" echo "$cmd_status"
+    show_test_result "$test_name" "$cmd_status"
     return $?
 }
 
@@ -40,7 +40,7 @@ unittest_should_pass_with_msg() {
         test_status=$FALSE
         TEST_FAILS=$((TEST_FAILS + 1))
     fi
-    validate_cmd "$test_name" echo "$test_status"
+    show_test_result "$test_name" "$test_status"
     TEST_RUNS=$((TEST_RUNS + 1))
     return $?
 }
@@ -51,14 +51,16 @@ unittest_should_fail() {
     "$@" &>/dev/null
     local cmd_status=$?
     local test_status
+    local test_details
     if is_success "$cmd_status"; then
         test_status=$FALSE
         TEST_FAILS=$((TEST_FAILS + 1))
+        test_details="The test succeded unexpectedly"
     else
         test_status=$TRUE
         TEST_PASSES=$((TEST_PASSES + 1))
     fi
-    validate_cmd "$test_name" echo "$test_status"
+    show_test_result "$test_name" "$test_status" "$test_details"
     TEST_RUNS=$((TEST_RUNS + 1))
     return $?
 }
@@ -74,6 +76,7 @@ unittest_should_fail_with_msg() {
     if is_success "$cmd_status"; then
         test_status=$FALSE
         TEST_FAILS=$((TEST_FAILS + 1))
+        test_details="The test succeded unexpectedly"
     else
         if printf '%s' "$output" | grep -F -q -- "$expected_msg"; then
             test_status=$TRUE
@@ -81,10 +84,13 @@ unittest_should_fail_with_msg() {
         else
             test_status=$FALSE
             TEST_FAILS=$((TEST_FAILS + 1))
+            test_details="The expected message ($expected_msg) was not found"
         fi
     fi
-    validate_cmd "$test_name" echo "$test_status"
     TEST_RUNS=$((TEST_RUNS + 1))
+    
+    show_test_result "$test_name" "$test_status" "$test_details"
+    
     return $?
 }
 
@@ -279,7 +285,7 @@ test_user_interactions() {
     unittest_should_pass "prompt_overwrite: overwrite on yes" run_autoinput_silent "y" prompt_overwrite "file.txt"
 
     #prompt_overwrite: do not overwrite on no -> validate_item should FAIL
-    unittest_should_fail_with_msg "prompt_overwrite: keep existing on no" "Using existing RESOURCE" run_autoinput_silent "n" prompt_overwrite "RESOURCE"
+    unittest_should_fail_with_msg "prompt_overwrite: keep existing on no" "Using existing 'RESOURCE'" run_autoinput_silent "n" prompt_overwrite "RESOURCE"
 }
 
 # test_menu() {
