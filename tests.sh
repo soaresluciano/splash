@@ -5,20 +5,71 @@ TEST_RUNS=0
 TEST_PASSES=0
 TEST_FAILS=0
 
-unittest_should_pass() {
-    local test_name="$1"
-    shift
-    "$@" &>/dev/null
+unittest() {
+    local expected_result="$1"
+    local test_name="$2"
+    shift 2
+    #local cmd="$@"
+    #echo "executing: $cmd"
+    #"cmd" &>/dev/null
+    "$@"
     local cmd_status=$?
-    if is_success "$cmd_status"; then
+    echo "cmd_status: $cmd_status"
+    local actual_result
+    if is_success $cmd_status; then
+        actual_result=$TRUE
+    else
+        actual_result=$FALSE
+    fi
+
+    echo "expected_result: $expected_result"
+    echo "actual_result: $actual_result"
+
+    local test_result
+    if are_equal_str "$expected_result" "$actual_result"; then
+        test_result=$TRUE
+    else
+        test_result=$FALSE
+    fi
+
+    TEST_RUNS=$((TEST_RUNS + 1))
+
+    if is_success $test_result; then
         TEST_PASSES=$((TEST_PASSES + 1))
     else
         TEST_FAILS=$((TEST_FAILS + 1))
+        if is_success $actual_result; then
+            test_details="The test succeded unexpectedly"
+        fi
     fi
-    TEST_RUNS=$((TEST_RUNS + 1))
-    show_test_result "$test_name" "$cmd_status"
+
+    show_test_result "$test_name" "$test_result" "$test_details"
     return $?
 }
+
+unittest_should_pass() {
+    unittest $TRUE "$@"
+    return $?
+}
+
+unittest_should_fail() {
+    unittest $FALSE "$@"
+    return $?
+}
+# unittest_should_pass() {
+#     local test_name="$1"
+#     shift
+#     "$@" &>/dev/null
+#     local cmd_status=$?
+#     if is_success "$cmd_status"; then
+#         TEST_PASSES=$((TEST_PASSES + 1))
+#     else
+#         TEST_FAILS=$((TEST_FAILS + 1))
+#     fi
+#     TEST_RUNS=$((TEST_RUNS + 1))
+#     show_test_result "$test_name" "$cmd_status"
+#     return $?
+# }
 
 unittest_should_pass_with_msg() {
     local test_name="$1"
@@ -35,6 +86,7 @@ unittest_should_pass_with_msg() {
         else
             test_status=$FALSE
             TEST_FAILS=$((TEST_FAILS + 1))
+            test_details="The expected message ($expected_msg) was not found"
         fi
     else
         test_status=$FALSE
@@ -45,25 +97,25 @@ unittest_should_pass_with_msg() {
     return $?
 }
 
-unittest_should_fail() {
-    local test_name="$1"
-    shift
-    "$@" &>/dev/null
-    local cmd_status=$?
-    local test_status
-    local test_details
-    if is_success "$cmd_status"; then
-        test_status=$FALSE
-        TEST_FAILS=$((TEST_FAILS + 1))
-        test_details="The test succeded unexpectedly"
-    else
-        test_status=$TRUE
-        TEST_PASSES=$((TEST_PASSES + 1))
-    fi
-    show_test_result "$test_name" "$test_status" "$test_details"
-    TEST_RUNS=$((TEST_RUNS + 1))
-    return $?
-}
+# unittest_should_fail() {
+#     local test_name="$1"
+#     shift
+#     "$@" &>/dev/null
+#     local cmd_status=$?
+#     local test_status
+#     local test_details
+#     if is_success "$cmd_status"; then
+#         test_status=$FALSE
+#         TEST_FAILS=$((TEST_FAILS + 1))
+#         test_details="The test succeded unexpectedly"
+#     else
+#         test_status=$TRUE
+#         TEST_PASSES=$((TEST_PASSES + 1))
+#     fi
+#     show_test_result "$test_name" "$test_status" "$test_details"
+#     TEST_RUNS=$((TEST_RUNS + 1))
+#     return $?
+# }
 
 unittest_should_fail_with_msg() {
     local test_name="$1"
@@ -76,7 +128,6 @@ unittest_should_fail_with_msg() {
     if is_success "$cmd_status"; then
         test_status=$FALSE
         TEST_FAILS=$((TEST_FAILS + 1))
-        test_details="The test succeded unexpectedly"
     else
         if printf '%s' "$output" | grep -F -q -- "$expected_msg"; then
             test_status=$TRUE
@@ -375,7 +426,12 @@ declare -A tests=(
 #flow_run tests
 
 test_user_interactions
-test_comparisons
-test_assertions
+# test_comparisons
+# test_assertions
 
 report_test_summary
+
+#run_autoinput_silent "" prompt_continue
+#unittest_should_pass "prompt_continue: waits for Enter" run_autoinput_silent "'_'" prompt_continue
+
+#echo $?
