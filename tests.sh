@@ -22,9 +22,9 @@ _process_test() {
     show_test_result "$test_name" "$test_result" "$test_details"
 }
 
-_test_cmd() {
+_test_run() {
     local __outvar="$1"
-    local expected_result="$2"
+    local expected_status="$2"
     shift 2
 
     run_cmd_capture result "$@"
@@ -32,62 +32,64 @@ _test_cmd() {
     local cmd_output=${result[output]}
     eval "$__outvar=\"\${cmd_output}\""
 
-    local actual_result=$FALSE
-    is_success $cmd_status && actual_result=$TRUE
+    local actual_status=$FALSE
+    is_success $cmd_status && actual_status=$TRUE
+    
     local test_result=$FALSE
-    are_equal_str "$expected_result" "$actual_result" && test_result=$TRUE
+    are_equal_str "$expected_status" "$actual_status" && test_result=$TRUE
 
     if $debugger_enabled; then
         echo "--------------------"
-        echo "Method: _test_cmd"
+        echo "Method: _test_run"
+        echo "cmd: $@"
         echo "cmd_status: $cmd_status"
-        echo "expected_result: $expected_result"
-        echo "actual_result: $actual_result"
+        echo "expected_status: $expected_status"
+        echo "actual_status: $actual_status"
         echo "test_result: $test_result"
         echo "--------------------"
     fi
     return "$test_result"
 }
 
-_test_cmd_output_contains() {
-    local test_name="$1"
-    local expected_result="$2"
-    local expected_msg="$3"
+_test_run_and_check_output() {
+    local __outvar="$1"
+    local expected_status="$2"
+    local expected_str="$3"
     shift 3
 
     local actual_output
-    _test_cmd actual_output "$expected_result" "$@"
+    _test_run actual_output "$expected_status" "$@"
     local test_result="$?"
-
-    local contains_msg=$FALSE
-    is_success $test_result && contains_str "$actual_output" "$expected_msg" && contains_msg=$TRUE
+    
+    local str_found=$FALSE
+    contains_str "$actual_output" "$expected_str" && str_found=$TRUE
 
     local test_details=""
-    ! is_success $contains_msg && test_details="The expected message ($expected_msg) was not found"
+    ! is_success $str_found && test_details="The expected string ($expected_str) was not found"
 
     local final_test_result=$FALSE
-    is_success $test_result && is_success $contains_msg && final_test_result=$TRUE
+    is_success $test_result && is_success $str_found && final_test_result=$TRUE
 
     if $debugger_enabled; then
         echo "--------------------"
-        echo "Method: _test_cmd_output_contains"
-        echo "test_name: $test_name"
-        echo "expected_result: $expected_result"
-        echo "expected_msg: $expected_msg"
+        echo "Method: _test_run_output_contains"
+        echo "cmd: $@"
+        echo "expected_status: $expected_status"
+        echo "expected_str: $expected_str"
         echo "test_result: $test_result"
-        echo "Final test_result: $final_test_result"
+        echo "str_found: $str_found"
+        echo "final test_result: $final_test_result"
         echo "--------------------"
     fi
 
-    _process_test "$test_name" "$final_test_result" "$test_details"
-
-    return "$test_result"
+    eval "$__outvar=\"\${test_details}\""
+    return "$final_test_result"
 }
 
 test_pass() {
     local test_name="$1"
     shift
-    _test_cmd actual_output $TRUE "$@"
+    _test_run actual_output $TRUE "$@"
     local test_result="$?"
     _process_test "$test_name" "$test_result"
     return "$test_result"
@@ -96,11 +98,8 @@ test_pass() {
 test_fail() {
     local test_name="$1"
     shift
-    _test_cmd actual_output $FALSE "$@"
+    _test_run actual_output $FALSE "$@"
     local test_result="$?"
-    # if ! is_success $actual_result; then
-    #     test_details="The test succeded unexpectedly"
-    # fi
     _process_test "$test_name" "$test_result"
     return "$test_result"
 }
@@ -109,87 +108,20 @@ test_pass_with_msg() {
     local test_name="$1"
     local expected_msg="$2"
     shift 2
-    _test_cmd_output_contains "$test_name" $TRUE "$expected_msg" "$@"
+    _test_run_and_check_output test_details $TRUE "$expected_msg" "$@"
+    local test_result="$?"
+    _process_test "$test_name" "$test_result" "$test_details"
+    return "$test_result"
 }
 
 test_fail_with_msg() {
     local test_name="$1"
     local expected_msg="$2"
     shift 2
-
-    if $debugger_enabled; then
-        echo "--------------------"
-        echo "Method: test_fail_with_msg"
-        echo "test_name: $test_name"
-        echo "expected_msg: $expected_msg"
-        echo "--------------------"
-    fi
-
-    _test_cmd_output_contains "$test_name" $FALSE "$expected_msg" "$@"
-}
-
-demo_utils() {
-    show_keyvalue "get_script_dir" "$(get_script_dir)"
-    show_keyvalue "get_current_user" "$(get_current_user)"
-}
-
-demo_styled() {
-    styled black "Black"
-    styled red "Red"
-    styled green "Green"
-    styled yellow "Yellow"
-    styled blue "Blue"
-    styled magenta "Magenta"
-    styled cyan "Cyan"
-    styled white "White"
-
-    styled bright_black "Bright Black"
-    styled bright_red "Bright Red"
-    styled bright_green "Bright Green"
-    styled bright_yellow "Bright Yellow"
-    styled bright_blue "Bright Blue"
-    styled bright_magenta "Bright Magenta"
-    styled bright_cyan "Bright Cyan"
-    styled bright_white "Bright White"
-
-    styled bold "Bold"
-    styled dim "Dim"
-    styled underline "Underlined"
-    styled blink "Blinking"
-    styled reverse "Reversed"
-
-    styled bold yellow "Bold Yellow"
-    styled dim blue "Dim Blue"
-    styled underline green "Underlined Green"
-    styled blink magenta "Blinking Magenta"
-    styled reverse cyan "Reversed Cyan"
-
-    styled bold underline reverse white "Bold Underlined Reversed White"
-}
-
-demo_ui_messages() {
-    show_title "This is a Title"
-    show_header "This is a Header"
-    show_error "This is an error message"
-    show_warning "This is a warning message"
-    show_success "This is a success message"
-    show_info "This is an info message"
-    show_log "This is a log message"
-    show_suggestion "This is a suggestion message"
-    show_question "This is a question"
-    banner_attention
-    banner_attention "CUSTOM ATTENTION"
-    banner_completed
-    banner_completed "CUSTOM COMPLETED"
-}
-
-demo_system_info() {
-    show_keyvalue "Distro Name" "$(system_distro_name)"
-    show_keyvalue "Distro ID" "$(system_distro_id)"
-    show_keyvalue "Kernel Version" "$(system_kernel_version)"
-    show_keyvalue "Architecture" "$(system_architecture)"
-    show_keyvalue "Desktop Environment" "$(system_desktop_environment)"
-    show_keyvalue "Display Server" "$(system_display_server)"
+    _test_run_and_check_output test_details $FALSE "$expected_msg" "$@"
+    local test_result="$?"
+    _process_test "$test_name" "$test_result" "$test_details"
+    return "$test_result"
 }
 
 test_user_interactions() {
@@ -392,25 +324,9 @@ report_test_summary() {
     echo -e "▫️ $(style bright_red bold) Failed:$(style red) $TEST_FAILS ($((TEST_FAILS * 100 / TEST_RUNS))%)${NC}"
 }
 
-declare -A demos=(
-    [demo_utils]="Utility functions"
-    [demo_styled]="Styled output"
-    [demo_ui_messages]="UI messages"
-    [demo_system_info]="System information"
-)
-#flow_run demos
-
-declare -A tests=(
-    [test_user_interactions]="User interaction tests"
-    [test_comparisons]="Comparison tests"
-    [test_assertions]="Assertion tests"
-    [test_validations]="Validation tests"
-)
-#flow_run tests
-
+# Run tests
 test_user_interactions
 test_comparisons
-
-# test_assertions
+test_assertions
 
 report_test_summary

@@ -1456,22 +1456,14 @@ run_autoinput_silent() {
     return "$?"
 }
 
-# Runs a command, captures its output in a variable, and returns the exit status
-# Usage: run_and_capture_output <output_var_name> command [args...]
-# Example:
-#   run_and_capture_output result_var ls -l /tmp
-#   status=$?
-#   echo "Output: $result_var"
-run_and_capture_output() {
-    local __outvar="$1"
-    shift
-    local __result
-    __result=$("$@" 2>&1)
-    local __status=$?
-    eval "$__outvar=\"\${__result}\""
-    return $__status
-}
-
+# Runs a command and captures its output and exit status
+# Usage: run_cmd_capture resultvar command arg1 arg2
+# Parameters:
+#   resultvar: Name of the associative array variable to receive output and status
+#   command: Command to run
+#   arg1, arg2, ...: Arguments to pass to the command
+# Returns:
+#   Populates the associative array with keys 'output' and 'status'
 run_cmd_capture() {
     local __resultvar="$1"
     shift
@@ -1488,80 +1480,6 @@ run_cmd_capture() {
     declare -gA "$__resultvar"
     eval "$__resultvar[output]=\"\$__output\""
     eval "$__resultvar[status]=\"\$__status\""
-}
-
-## Checks if the output of a command contains a given substring
-# Usage:
-#   run_output_contains outvar "substring" command arg1 arg2
-#   echo "Command status: ${outvar}"
-# Parameters:
-#   outvar: Name of the variable to receive the command's exit status
-#   expected_substring: The substring to search for in the command output (stdout+stderr)
-#   command: The command to run
-#   arg1, arg2, ...: Arguments to pass to the command
-# Returns:
-#   TRUE if the output contains the substring
-#   FALSE if the output does not contain the substring
-run_output_contains() {
-    local __outvar="$1"
-    local expected_substring="$2"
-    shift 2
-    local actual_output
-    run_and_capture_output actual_output "$@"
-    local status=$?
-    eval "$__outvar=$status"
-    contains_str "$actual_output" "$expected_substring"
-    return $?
-}
-
-## Compares the output of a command to an expected string (exact match)
-# Usage:
-#   run_output_compare outvar "expected output" command arg1 arg2
-#   echo "Command status: ${outvar}"
-# Parameters:
-#   outvar: Name of the variable to receive the command's exit status
-#   expected_output: The exact string expected as output (stdout+stderr) from the command
-#   command: The command to run
-#   arg1, arg2, ...: Arguments to pass to the command
-# Returns:
-#   TRUE if the command output matches the expected string exactly
-#   FALSE if the output does not match
-run_output_compare() {
-    local __outvar="$1"
-    local expected_output="$2"
-    shift 2
-    local actual_output
-    run_and_capture_output actual_output "$@"
-    local status=$?
-    eval "$__outvar=$status"
-    are_equal_str "$expected_output" "$actual_output"
-    return $?
-}
-
-## Simulates interactive input for a command and compares its output to an expected string (exact match)
-# Usage:
-#   run_autoinput_output_compare outvar "input1\ninput2\n" "expected output" command arg1 arg2
-#   echo "Command status: ${outvar}"
-# Parameters:
-#   outvar: Name of the variable to receive the command's exit status
-#   input: String containing simulated user input (use \n for line breaks)
-#   expected_output: The exact string expected as output (stdout+stderr) from the command
-#   command: The command to run (should read from stdin)
-#   arg1, arg2, ...: Arguments to pass to the command
-# Returns:
-#   TRUE if the command output matches the expected string exactly
-#   FALSE if the output does not match
-run_autoinput_output_compare() {
-    local __outvar="$1"
-    local input="$2"
-    local expected_output="$3"
-    shift 3
-    local actual_output
-    run_and_capture_output actual_output run_autoinput "$input" "$@"
-    local status=$?
-    eval "$__outvar=$status"
-    are_equal_str "$expected_output" "$actual_output"
-    return $?
 }
 
 # TEMPORARY DIRECTORY MANAGEMENT
