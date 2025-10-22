@@ -1,7 +1,7 @@
 #!/bin/bash
 source ./spla.sh
 
-debugger_enabled=true
+debugger_enabled=false
 
 TEST_RUNS=0
 TEST_PASSES=0
@@ -26,24 +26,16 @@ _test_cmd() {
     local __outvar="$1"
     local expected_result="$2"
     shift 2
+
     run_cmd_capture result "$@"
     local cmd_status=${result[status]}
     local cmd_output=${result[output]}
-
     eval "$__outvar=\"\${cmd_output}\""
-    local actual_result
-    if is_success $cmd_status; then
-        actual_result=$TRUE
-    else
-        actual_result=$FALSE
-    fi
 
-    local test_result
-    if are_equal_str "$expected_result" "$actual_result"; then
-        test_result=$TRUE
-    else
-        test_result=$FALSE
-    fi
+    local actual_result=$FALSE
+    is_success $cmd_status && actual_result=$TRUE
+    local test_result=$FALSE
+    are_equal_str "$expected_result" "$actual_result" && test_result=$TRUE
 
     if $debugger_enabled; then
         echo "--------------------"
@@ -62,9 +54,19 @@ _test_cmd_output_contains() {
     local expected_result="$2"
     local expected_msg="$3"
     shift 3
+
     local actual_output
     _test_cmd actual_output "$expected_result" "$@"
     local test_result="$?"
+
+    local contains_msg=$FALSE
+    is_success $test_result && printf '%s' "$actual_output" | grep -F -q -- "$expected_msg" && contains_msg=$TRUE
+
+    local test_details=""
+    ! is_success $contains_msg && test_details="The expected message ($expected_msg) was not found"
+
+    local final_test_result=$FALSE
+    is_success $test_result && is_success $contains_msg && final_test_result=$TRUE
 
     if $debugger_enabled; then
         echo "--------------------"
@@ -73,24 +75,11 @@ _test_cmd_output_contains() {
         echo "expected_result: $expected_result"
         echo "expected_msg: $expected_msg"
         echo "test_result: $test_result"
-    fi
-
-    local test_details=""
-    if is_success $test_result; then
-        if printf '%s' "$actual_output" | grep -F -q -- "$expected_msg"; then
-            test_result=$TRUE
-        else
-            test_result=$FALSE
-            test_details="The expected message ($expected_msg) was not found"
-        fi
-    fi
-
-    if $debugger_enabled; then
-        echo "Final test_result: $test_result"
+        echo "Final test_result: $final_test_result"
         echo "--------------------"
     fi
 
-    _process_test "$test_name" "$test_result" "$test_details"
+    _process_test "$test_name" "$final_test_result" "$test_details"
 
     return "$test_result"
 }
@@ -128,11 +117,13 @@ unittest_should_fail_with_msg() {
     local expected_msg="$2"
     shift 2
 
-    echo "--------------------"
-    echo "Method: unittest_should_fail_with_msg"
-    echo "test_name: $test_name"
-    echo "expected_msg: $expected_msg"
-    echo "--------------------"
+    if $debugger_enabled; then
+        echo "--------------------"
+        echo "Method: unittest_should_fail_with_msg"
+        echo "test_name: $test_name"
+        echo "expected_msg: $expected_msg"
+        echo "--------------------"
+    fi
 
     _test_cmd_output_contains "$test_name" $FALSE "$expected_msg" "$@"
 }
@@ -417,8 +408,9 @@ declare -A tests=(
 )
 #flow_run tests
 
-# test_user_interactions
-# test_comparisons
+test_user_interactions
+test_comparisons
+
 # test_assertions
 
-#report_test_summary
+report_test_summary
