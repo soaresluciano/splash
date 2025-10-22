@@ -5,16 +5,30 @@ TEST_RUNS=0
 TEST_PASSES=0
 TEST_FAILS=0
 
-unittest() {
-    local expected_result="$1"
-    local test_name="$2"
+_process_test() {
+    local test_name="$1"
+    local test_result="$2"
+    local test_details="${3:-}"
+
+    TEST_RUNS=$((TEST_RUNS + 1))
+    if is_success "$test_result"; then
+        TEST_PASSES=$((TEST_PASSES + 1))
+    else
+        TEST_FAILS=$((TEST_FAILS + 1))
+    fi
+
+    show_test_result "$test_name" "$test_result" "$test_details"
+}
+
+_test_cmd() {
+    local __outvar="$1"
+    local expected_result="$2"
     shift 2
-    #local cmd="$@"
-    #echo "executing: $cmd"
-    #"cmd" &>/dev/null
-    "$@"
+    local cmd_output="$("$@" 2>&1)"
     local cmd_status=$?
-    echo "cmd_status: $cmd_status"
+    #echo "cmd_status: $cmd_status"
+    #echo "output: $cmd_output"
+    eval "$__outvar=\"\${cmd_output}\""
     local actual_result
     if is_success $cmd_status; then
         actual_result=$TRUE
@@ -22,8 +36,8 @@ unittest() {
         actual_result=$FALSE
     fi
 
-    echo "expected_result: $expected_result"
-    echo "actual_result: $actual_result"
+    # echo "expected_result: $expected_result"
+    # echo "actual_result: $actual_result"
 
     local test_result
     if are_equal_str "$expected_result" "$actual_result"; then
@@ -32,30 +46,155 @@ unittest() {
         test_result=$FALSE
     fi
 
-    TEST_RUNS=$((TEST_RUNS + 1))
+    # TEST_RUNS=$((TEST_RUNS + 1))
 
-    if is_success $test_result; then
-        TEST_PASSES=$((TEST_PASSES + 1))
-    else
-        TEST_FAILS=$((TEST_FAILS + 1))
-        if is_success $actual_result; then
-            test_details="The test succeded unexpectedly"
-        fi
-    fi
+    # local test_details=""
+    # if is_success $test_result; then
+    #     TEST_PASSES=$((TEST_PASSES + 1))
+    # else
+    #     TEST_FAILS=$((TEST_FAILS + 1))
+    # fi
 
-    show_test_result "$test_name" "$test_result" "$test_details"
-    return $?
+    #echo "test_result: $test_result"
+    return "$test_result"
 }
 
+_test_cmd_output_contains() {
+    local test_name="$1"
+    local expected_result="$2"
+    local expected_msg="$3"
+    shift 3
+    local actual_output
+    # echo "test_name: $test_name"
+    # echo "expected_result: $expected_result"
+    # echo "expected_msg: $expected_msg"
+    
+    _test_cmd actual_output $TRUE "$@"
+    local test_result="$?"
+    # echo "actual_output: $actual_output"
+    # echo "test_result: $test_result"
+    local test_details=""
+    if is_success $test_result; then
+        if printf '%s' "$actual_output" | grep -F -q -- "$expected_msg"; then
+            test_result=$TRUE
+        else
+            test_result=$FALSE
+            test_details="The expected message ($expected_msg) was not found"
+        fi
+    fi
+    _process_test "$test_name" "$test_result" "$test_details"
+    return "$test_result"
+}
+
+# unittest() {
+#     local __outvar="$1"
+#     local expected_result="$2"
+#     local test_name="$3"
+#     shift 3
+#     __outvar=$("$@" 2>&1)
+#     local cmd_status=$?
+#     #echo "cmd_status: $cmd_status"
+#     local actual_result
+#     if is_success $cmd_status; then
+#         actual_result=$TRUE
+#     else
+#         actual_result=$FALSE
+#     fi
+
+#     # echo "expected_result: $expected_result"
+#     # echo "actual_result: $actual_result"
+
+#     local test_result
+#     if are_equal_str "$expected_result" "$actual_result"; then
+#         test_result=$TRUE
+#     else
+#         test_result=$FALSE
+#     fi
+
+#     TEST_RUNS=$((TEST_RUNS + 1))
+
+#     local test_details=""
+#     if is_success $test_result; then
+#         TEST_PASSES=$((TEST_PASSES + 1))
+#     else
+#         TEST_FAILS=$((TEST_FAILS + 1))
+#         if is_success $actual_result; then
+#             test_details="The test succeded unexpectedly"
+#         fi
+#     fi
+
+#     #echo "test_result: $test_result"
+#     show_test_result "$test_name" "$test_result" "$test_details"
+#     return $?
+# }
+
 unittest_should_pass() {
-    unittest $TRUE "$@"
-    return $?
+    local test_name="$1"
+    shift
+    _test_cmd actual_output $TRUE "$@"
+    local test_result="$?"
+    _process_test "$test_name" "$test_result"
+    return "$test_result"
 }
 
 unittest_should_fail() {
-    unittest $FALSE "$@"
-    return $?
+    local test_name="$1"
+    shift
+    _test_cmd actual_output $FALSE "$@"
+    local test_result="$?"
+    # if ! is_success $actual_result; then
+    #     test_details="The test succeded unexpectedly"
+    # fi
+    _process_test "$test_name" "$test_result"
+    return "$test_result"
 }
+
+unittest_should_pass_with_msg() {
+    local test_name="$1"
+    local expected_msg="$2"
+    shift 2
+    _test_cmd_output_contains "$test_name" $TRUE "$expected_msg" "$@"
+
+    # _test_cmd actual_output $TRUE "$@"
+    # local test_result="$?"
+    # local test_details=""
+    # if is_success $test_result; then
+    #     if printf '%s' "$output" | grep -F -q -- "$expected_msg"; then
+    #         test_result=$TRUE
+    #     else
+    #         test_result=$FALSE
+    #         test_details="The expected message ($expected_msg) was not found"
+    #     fi
+    # fi
+    # _process_test "$test_name" "$test_result" "$test_details"
+    # return "$test_result"
+}
+
+unittest_should_fail_with_msg() {
+    local test_name="$1"
+    local expected_msg="$2"
+    shift 
+    _test_cmd_output_contains "$test_name" $FAIL "$expected_msg" "$@"
+    # _test_cmd actual_output $FALSE "$@"
+    # local test_result="$?"
+    # local test_details=""
+    # if is_success $test_result; then
+    #     if printf '%s' "$output" | grep -F -q -- "$expected_msg"; then
+    #         test_result=$TRUE
+    #     else
+    #         test_result=$FALSE
+    #         test_details="The expected message ($expected_msg) was not found"
+    #     fi
+    # fi
+    # _process_test "$test_name" "$test_result" "$test_details"
+    # return "$test_result"
+}
+
+unittest_should_pass_with_msg "prompt_question: returns input" "Alice" run_autoinput "Alice" prompt_question "Enter your name"
+#run_autoinput "Alice" prompt_question ""
+
+# actual_output
+
 # unittest_should_pass() {
 #     local test_name="$1"
 #     shift
@@ -71,31 +210,31 @@ unittest_should_fail() {
 #     return $?
 # }
 
-unittest_should_pass_with_msg() {
-    local test_name="$1"
-    local expected_msg="$2"
-    shift 2
-    local output
-    output=$("$@" 2>&1)
-    local cmd_status=$?
-    local test_status
-    if is_success "$cmd_status"; then
-        if printf '%s' "$output" | grep -F -q -- "$expected_msg"; then
-            test_status=$TRUE
-            TEST_PASSES=$((TEST_PASSES + 1))
-        else
-            test_status=$FALSE
-            TEST_FAILS=$((TEST_FAILS + 1))
-            test_details="The expected message ($expected_msg) was not found"
-        fi
-    else
-        test_status=$FALSE
-        TEST_FAILS=$((TEST_FAILS + 1))
-    fi
-    show_test_result "$test_name" "$test_status"
-    TEST_RUNS=$((TEST_RUNS + 1))
-    return $?
-}
+# unittest_should_pass_with_msg() {
+#     local test_name="$1"
+#     local expected_msg="$2"
+#     shift 2
+#     local output
+#     output=$("$@" 2>&1)
+#     local cmd_status=$?
+#     local test_status
+#     if is_success "$cmd_status"; then
+#         if printf '%s' "$output" | grep -F -q -- "$expected_msg"; then
+#             test_status=$TRUE
+#             TEST_PASSES=$((TEST_PASSES + 1))
+#         else
+#             test_status=$FALSE
+#             TEST_FAILS=$((TEST_FAILS + 1))
+#             test_details="The expected message ($expected_msg) was not found"
+#         fi
+#     else
+#         test_status=$FALSE
+#         TEST_FAILS=$((TEST_FAILS + 1))
+#     fi
+#     show_test_result "$test_name" "$test_status"
+#     TEST_RUNS=$((TEST_RUNS + 1))
+#     return $?
+# }
 
 # unittest_should_fail() {
 #     local test_name="$1"
@@ -117,33 +256,33 @@ unittest_should_pass_with_msg() {
 #     return $?
 # }
 
-unittest_should_fail_with_msg() {
-    local test_name="$1"
-    local expected_msg="$2"
-    shift 2
-    local output
-    output=$("$@" 2>&1)
-    local cmd_status=$?
-    local test_status
-    if is_success "$cmd_status"; then
-        test_status=$FALSE
-        TEST_FAILS=$((TEST_FAILS + 1))
-    else
-        if printf '%s' "$output" | grep -F -q -- "$expected_msg"; then
-            test_status=$TRUE
-            TEST_PASSES=$((TEST_PASSES + 1))
-        else
-            test_status=$FALSE
-            TEST_FAILS=$((TEST_FAILS + 1))
-            test_details="The expected message ($expected_msg) was not found"
-        fi
-    fi
-    TEST_RUNS=$((TEST_RUNS + 1))
+# unittest_should_fail_with_msg() {
+#     local test_name="$1"
+#     local expected_msg="$2"
+#     shift 2
+#     local output
+#     output=$("$@" 2>&1)
+#     local cmd_status=$?
+#     local test_status
+#     if is_success "$cmd_status"; then
+#         test_status=$FALSE
+#         TEST_FAILS=$((TEST_FAILS + 1))
+#     else
+#         if printf '%s' "$output" | grep -F -q -- "$expected_msg"; then
+#             test_status=$TRUE
+#             TEST_PASSES=$((TEST_PASSES + 1))
+#         else
+#             test_status=$FALSE
+#             TEST_FAILS=$((TEST_FAILS + 1))
+#             test_details="The expected message ($expected_msg) was not found"
+#         fi
+#     fi
+#     TEST_RUNS=$((TEST_RUNS + 1))
     
-    show_test_result "$test_name" "$test_status" "$test_details"
+#     show_test_result "$test_name" "$test_status" "$test_details"
     
-    return $?
-}
+#     return $?
+# }
 
 demo_utils() {
     show_keyvalue "get_script_dir" "$(get_script_dir)"
@@ -214,7 +353,7 @@ test_user_interactions() {
     unittest_should_pass "prompt_continue: waits for Enter" run_autoinput_silent "" prompt_continue
 
     # prompt_question: returns the user's input
-    unittest_should_pass_with_msg "prompt_question: returns input" "Alice" run_autoinput "Alice" prompt_question "Enter your name"
+    unittest_should_pass_with_msg "prompt_question: returns input" "Alice1" run_autoinput "Alice" prompt_question "Enter your name"
 
     # prompt_question: character limit enforcement (limit=3)
     unittest_should_pass_with_msg "prompt_question: enforces char limit" "ABC" run_autoinput "ABCDE" prompt_question "Limited" "" 3
@@ -425,7 +564,7 @@ declare -A tests=(
 )
 #flow_run tests
 
-test_user_interactions
+# test_user_interactions
 # test_comparisons
 # test_assertions
 
