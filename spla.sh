@@ -1025,7 +1025,7 @@ validate_dependencies() {
 # TESTING HELPERS
 #==============================================================================
 
-_test_run() {
+_test_case_run() {
     local __outvar="$1"
     local expected_status="$2"
     shift 2
@@ -1042,7 +1042,7 @@ _test_run() {
 
     if $debugger_enabled; then
         echo "--------------------"
-        echo "Method: _test_run"
+        echo "Method: _unit_test_run"
         echo "cmd: $@"
         echo "cmd_status: $cmd_status"
         echo "expected_status: $expected_status"
@@ -1055,14 +1055,14 @@ _test_run() {
     return "$test_result"
 }
 
-_test_run_and_check_output() {
+_test_case_run_and_check_output() {
     local __outvar="$1"
     local expected_status="$2"
     local expected_str="$3"
     shift 3
 
     local actual_output
-    _test_run actual_output "$expected_status" "$@"
+    _test_case_run actual_output "$expected_status" "$@"
     local test_result="$?"
     
     local str_found=$FALSE
@@ -1088,6 +1088,59 @@ _test_run_and_check_output() {
 
     eval "$__outvar=\"\${test_details}\""
     return "$final_test_result"
+}
+
+test_case() {
+    local expected_status="$1"
+    local test_name="$2"
+    local expected_str="${3:-}"
+    shift 3
+
+    local test_result
+    if is_not_empty "$expected_str"; then
+        _test_case_run_and_check_output test_details "$expected_status" "$expected_str" "$@"
+        test_result=$?
+    else
+        _test_case_run test_details "$expected_status" "$@"
+        test_result=$?
+    fi
+
+    show_test_result "$test_name" "$test_result" "$test_details"
+
+    TEST_RUNS=$((TEST_RUNS + 1))
+    if is_success "$test_result"; then
+        TEST_PASSES=$((TEST_PASSES + 1))
+    else
+        TEST_FAILS=$((TEST_FAILS + 1))
+    fi
+
+    return $test_result
+}
+
+# Runs a series of test cases and summarizes results
+# Usage: test_fixture_run <testcase1> <testcase2> ...
+# Parameters:
+#   testcases: Array of test case function names to execute
+test_fixture_run() {
+    TEST_RUNS=0
+    TEST_PASSES=0
+    TEST_FAILS=0
+
+    show_title "Unit Tests"
+
+    for testcase in "$@"; do
+        $testcase
+    done
+
+    echo
+    show_title "Test Results"
+    echo -e "▫️ $(style bright_blue bold) Total Runs:$(style blue) $TEST_RUNS${NC}"
+    if [ $TEST_RUNS -eq 0 ]; then
+        show_warning "No tests were executed."
+        return
+    fi
+    echo -e "▫️ $(style bright_green bold) Passed:$(style green) $TEST_PASSES ($((TEST_PASSES * 100 / TEST_RUNS))%)${NC}"
+    echo -e "▫️ $(style bright_red bold) Failed:$(style red) $TEST_FAILS ($((TEST_FAILS * 100 / TEST_RUNS))%)${NC}"
 }
 
 # NETWORK OPERATIONS
@@ -1544,7 +1597,6 @@ run_cmd_capture() {
     )"
     __status=$?
 
-    # Declare associative array and assign values
     declare -gA "$__resultvar"
     eval "$__resultvar[output]=\"\$__output\""
     eval "$__resultvar[status]=\"\$__status\""

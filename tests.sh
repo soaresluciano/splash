@@ -3,61 +3,33 @@ source ./spla.sh
 
 debugger_enabled=false
 
-TEST_RUNS=0
-TEST_PASSES=0
-TEST_FAILS=0
-
-_test_process_result() {
-    local test_name="$1"
-    local test_result="$2"
-    local test_details="${3:-}"
-
-    TEST_RUNS=$((TEST_RUNS + 1))
-    if is_success "$test_result"; then
-        TEST_PASSES=$((TEST_PASSES + 1))
-    else
-        TEST_FAILS=$((TEST_FAILS + 1))
-    fi
-
-    show_test_result "$test_name" "$test_result" "$test_details"
-}
-
 test_pass() {
     local test_name="$1"
     shift
-    _test_run actual_output $TRUE "$@"
-    local test_result="$?"
-    _test_process_result "$test_name" "$test_result"
-    return "$test_result"
+    test_case $TRUE "$test_name" "" "$@"
 }
 
 test_fail() {
     local test_name="$1"
     shift
-    _test_run actual_output $FALSE "$@"
-    local test_result="$?"
-    _test_process_result "$test_name" "$test_result"
-    return "$test_result"
+
+    test_case  $FALSE "$test_name" "" "$@"
 }
 
 test_pass_with_msg() {
     local test_name="$1"
     local expected_msg="$2"
     shift 2
-    _test_run_and_check_output test_details $TRUE "$expected_msg" "$@"
-    local test_result="$?"
-    _test_process_result "$test_name" "$test_result" "$test_details"
-    return "$test_result"
+
+    test_case $TRUE "$test_name" "$expected_msg" "$@"
 }
 
 test_fail_with_msg() {
     local test_name="$1"
     local expected_msg="$2"
     shift 2
-    _test_run_and_check_output test_details $FALSE "$expected_msg" "$@"
-    local test_result="$?"
-    _test_process_result "$test_name" "$test_result" "$test_details"
-    return "$test_result"
+
+    test_case $FALSE "$test_name" "$expected_msg" "$@"
 }
 
 test_user_interactions() {
@@ -71,24 +43,24 @@ test_user_interactions() {
     test_pass_with_msg "prompt_question: enforces char limit" "ABC" run_autoinput "ABCDE" prompt_question "Limited" "" 3
 
     # prompt_yesno: accept 'y' and 'Y' as true
-    test_pass "prompt_yesno: accepts 'y'" run_autoinput "y" prompt_yesno "Continue?"
-    test_pass "prompt_yesno: accepts 'Y'" run_autoinput "Y" prompt_yesno "Continue?"
+    test_pass "prompt_yesno: accepts 'y'" run_autoinput_silent "y" prompt_yesno "Continue?"
+    test_pass "prompt_yesno: accepts 'Y'" run_autoinput_silent "Y" prompt_yesno "Continue?"
 
     # prompt_yesno: accepts 'n' and 'N' as false (validate_item should FAIL)
-    test_fail "prompt_yesno: rejects 'n'" run_autoinput "n" prompt_yesno "Continue?"
-    test_fail "prompt_yesno: rejects 'N'" run_autoinput "N" prompt_yesno "Continue?"
+    test_fail "prompt_yesno: rejects 'n'" run_autoinput_silent "n" prompt_yesno "Continue?"
+    test_fail "prompt_yesno: rejects 'N'" run_autoinput_silent "N" prompt_yesno "Continue?"
 
     # prompt_yesno: pressing Enter defaults to no (validate_item should FAIL)
-    test_fail "prompt_yesno: Enter defaults to no" run_autoinput "" prompt_yesno "Continue?"
+    test_fail "prompt_yesno: Enter defaults to no" run_autoinput_silent "" prompt_yesno "Continue?"
 
     # prompt_proceed: simulate proceed (yes)
-    test_pass "prompt_proceed: proceed on yes" run_autoinput "y" prompt_proceed "This will run."
+    test_pass "prompt_proceed: proceed on yes" run_autoinput_silent "y" prompt_proceed "This will run."
 
     # prompt_proceed: simulate cancel (no) -> validate_item should FAIL
     test_fail_with_msg "prompt_proceed: cancel on no" "Operation cancelled by user." run_autoinput "n" prompt_proceed "This will not run."
 
     # prompt_overwrite: simulate overwrite (yes)
-    test_pass "prompt_overwrite: overwrite on yes" run_autoinput "y" prompt_overwrite "file.txt"
+    test_pass "prompt_overwrite: overwrite on yes" run_autoinput_silent "y" prompt_overwrite "file.txt"
 
     # WITHOUT
     ## prompt_overwrite: do not overwrite on no -> validate_item should FAIL
@@ -248,21 +220,10 @@ test_assertions() {
     test_fail_with_msg "- cstm assert_is_less_than_or_equal" "$custom_err" assert_is_less_than_or_equal 1 0 "$custom_err"
 }
 
-report_test_summary() {
-    echo
-    show_title "Test Summary"
-    echo -e "▫️ $(style bright_blue bold) Total Runs:$(style blue) $TEST_RUNS${NC}"
-    if [ $TEST_RUNS -eq 0 ]; then
-        show_warning "No tests were executed."
-        return
-    fi
-    echo -e "▫️ $(style bright_green bold) Passed:$(style green) $TEST_PASSES ($((TEST_PASSES * 100 / TEST_RUNS))%)${NC}"
-    echo -e "▫️ $(style bright_red bold) Failed:$(style red) $TEST_FAILS ($((TEST_FAILS * 100 / TEST_RUNS))%)${NC}"
-}
+fixture=(
+    test_user_interactions
+    test_comparisons
+    test_assertions
+)
 
-# Run tests
-test_user_interactions
-test_comparisons
-test_assertions
-
-report_test_summary
+test_fixture_run "${fixture[@]}"
