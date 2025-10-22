@@ -94,102 +94,6 @@ unittest_should_fail_with_msg() {
     return $?
 }
 
-assert_passes_with() {
-    local expected_msg="$1"
-    shift
-    local output status
-    # Run the command and capture both stdout and stderr
-    output=$("$@" 2>&1)
-    status=$?
-
-    # Command must succeed and output must contain the expected message (fixed-string)
-    if [[ $status -eq 0 ]]; then
-        if printf '%s' "$output" | grep -F -q -- "$expected_msg"; then
-            return 0
-        else
-            # show captured output for debugging
-            printf '%s\n' "$output" >&2
-            return 1
-        fi
-    else
-        # command failed, print output and return its status
-        printf '%s\n' "$output" >&2
-        return $status
-    fi
-}
-
-assert_fails_with() {
-    local expected_msg="$1"
-    shift
-    local output status
-    # Run the command and capture both stdout and stderr
-    output=$("$@" 2>&1)
-    status=$?
-
-    # Command must fail (non-zero) and output must contain the expected message
-    if [[ $status -ne 0 ]]; then
-        if printf '%s' "$output" | grep -F -q -- "$expected_msg"; then
-            return 0
-        else
-            printf '%s\n' "$output" >&2
-            return 1
-        fi
-    else
-        # command succeeded unexpectedly
-        printf '%s\n' "$output" >&2
-        return 1
-    fi
-}
-
-# Asserts that a command fails and its output does NOT contain the expected message
-assert_fails_without() {
-    local forbidden_msg="$1"
-    shift
-    local output status
-    output=$("$@" 2>&1)
-    status=$?
-
-    if [[ $status -ne 0 ]]; then
-        if printf '%s' "$output" | grep -F -q -- "$forbidden_msg"; then
-            # forbidden message found -> fail
-                printf '%s\n' "$output" >&2
-            return 1
-        else
-            return 0
-        fi
-    else
-        # command succeeded unexpectedly
-            printf '%s\n' "$output" >&2
-        return 1
-    fi
-}
-
-assert_passes_with2() {
-    local expected_msg="$1"
-    shift
-    assert_output_contains $TRUE "$expected_msg" "$@"
-    return $?
-}
-
-assert_fails_with2() {
-    local expected_msg="$1"
-    shift
-    assert_output_contains $FALSE "$expected_msg" "$@"
-    return $?
-}
-
-# Asserts that a command fails and its output does NOT contain the expected message
-assert_fails_without2() {
-    local forbidden_msg="$1"
-    shift
-    assert_output_contains $TRUE "$forbidden_msg" "$@"
-    if [ $? -eq $FALSE ]; then
-        return $TRUE
-    else
-        return $FALSE
-    fi
-}
-
 demo_utils() {
     show_keyvalue "get_script_dir" "$(get_script_dir)"
     show_keyvalue "get_current_user" "$(get_current_user)"
@@ -259,10 +163,10 @@ test_user_interactions() {
     unittest_should_pass "prompt_continue: waits for Enter" run_autoinput_silent "" prompt_continue
 
     # prompt_question: returns the user's input
-    unittest_should_pass_with_msg "prompt_question: returns input" "Alice" run_autoinput_silent "Alice" prompt_question "Enter your name"
+    unittest_should_pass_with_msg "prompt_question: returns input" "Alice" run_autoinput "Alice" prompt_question "Enter your name"
 
     # prompt_question: character limit enforcement (limit=3)
-    unittest_should_pass_with_msg "prompt_question: enforces char limit" "ABC" run_autoinput_silent "ABCDE" prompt_question "Limited" "" 3
+    unittest_should_pass_with_msg "prompt_question: enforces char limit" "ABC" run_autoinput "ABCDE" prompt_question "Limited" "" 3
 
     # prompt_yesno: accept 'y' and 'Y' as true
     unittest_should_pass "prompt_yesno: accepts 'y'" run_autoinput_silent "y" prompt_yesno "Continue?"
@@ -279,13 +183,13 @@ test_user_interactions() {
     unittest_should_pass "prompt_proceed: proceed on yes" run_autoinput_silent "y" prompt_proceed "This will run."
 
     # prompt_proceed: simulate cancel (no) -> validate_item should FAIL
-    unittest_should_fail_with_msg "prompt_proceed: cancel on no" "Operation cancelled by user." run_autoinput_silent "n" prompt_proceed "This will not run."
+    unittest_should_fail_with_msg "prompt_proceed: cancel on no" "Operation cancelled by user." run_autoinput "n" prompt_proceed "This will not run."
 
     # prompt_overwrite: simulate overwrite (yes)
     unittest_should_pass "prompt_overwrite: overwrite on yes" run_autoinput_silent "y" prompt_overwrite "file.txt"
 
     #prompt_overwrite: do not overwrite on no -> validate_item should FAIL
-    unittest_should_fail_with_msg "prompt_overwrite: keep existing on no" "Using existing 'RESOURCE'" run_autoinput_silent "n" prompt_overwrite "RESOURCE"
+    unittest_should_fail_with_msg "prompt_overwrite: keep existing on no" "Using existing 'RESOURCE'" run_autoinput "n" prompt_overwrite "RESOURCE"
 }
 
 # test_menu() {
@@ -296,43 +200,43 @@ test_user_interactions() {
 # test_file_operations() {
 # }
 
-test_validations() {
-    success_msg="OK"
-    error_msg="FAIL"
-    suggestion_msg="Fix: Suggestion!"
-    # Helper: run a validation test and show result. It accepts the
-    # positional arguments to be forwarded to validate_item (preserving
-    # separate arguments rather than building a single string).
-    run_validate_item_test() {
-        local assert_fn="$1"; shift
-        local expected_msg="$1"; shift
-        local test_name="$1"; shift
-        # Remaining args (if any) are passed to validate_item
-        if $assert_fn "$expected_msg" validate_item "$test_name" "$@"; then
-            show_success "$test_name: PASS"
-        else
-            show_error "$test_name: FAIL"
-        fi
-    }
+# test_validations() {
+#     success_msg="OK"
+#     error_msg="FAIL"
+#     suggestion_msg="Fix: Suggestion!"
+#     # Helper: run a validation test and show result. It accepts the
+#     # positional arguments to be forwarded to validate_item (preserving
+#     # separate arguments rather than building a single string).
+#     run_validate_item_test() {
+#         local assert_fn="$1"; shift
+#         local expected_msg="$1"; shift
+#         local test_name="$1"; shift
+#         # Remaining args (if any) are passed to validate_item
+#         if $assert_fn "$expected_msg" validate_item "$test_name" "$@"; then
+#             show_success "$test_name: PASS"
+#         else
+#             show_error "$test_name: FAIL"
+#         fi
+#     }
 
-    # Basic cases
-    local description="Shows description"
-    run_validate_item_test assert_passes_with "Checking $description..." "$description" "0"
-    run_validate_item_test assert_passes_with "$success_msg" "Receives 0" "0"
-    run_validate_item_test assert_fails_with  "$error_msg"   "Receives garbage" "garbage"
+#     # Basic cases
+#     local description="Shows description"
+#     run_validate_item_test assert_passes_with "Checking $description..." "$description" "0"
+#     run_validate_item_test assert_passes_with "$success_msg" "Receives 0" "0"
+#     run_validate_item_test assert_fails_with  "$error_msg"   "Receives garbage" "garbage"
 
-    # Command-like check expressions
-    run_validate_item_test assert_passes_with "$success_msg" "Receives TRUE" "[ -z '' ]"
-    run_validate_item_test assert_fails_with  "$error_msg"   "Receives FALSE" "[ -z 'data' ]"
+#     # Command-like check expressions
+#     run_validate_item_test assert_passes_with "$success_msg" "Receives TRUE" "[ -z '' ]"
+#     run_validate_item_test assert_fails_with  "$error_msg"   "Receives FALSE" "[ -z 'data' ]"
 
-    # Fix suggestion behavior
-    run_validate_item_test assert_fails_with  "$suggestion_msg" "Show fix suggestion on failure (fix printed)" "[ -z 'data' ]" "Suggestion!"
-    run_validate_item_test assert_fails_without "$suggestion_msg" "Do not show fix suggestion on failure (fix not printed)" "[ -z 'data' ]"
+#     # Fix suggestion behavior
+#     run_validate_item_test assert_fails_with  "$suggestion_msg" "Show fix suggestion on failure (fix printed)" "[ -z 'data' ]" "Suggestion!"
+#     run_validate_item_test assert_fails_without "$suggestion_msg" "Do not show fix suggestion on failure (fix not printed)" "[ -z 'data' ]"
 
-    # Extra edge case: empty string as value (should be treated as blank/OK)
-    run_validate_item_test assert_passes_with "$success_msg" "Receives empty string" ""
+#     # Extra edge case: empty string as value (should be treated as blank/OK)
+#     run_validate_item_test assert_passes_with "$success_msg" "Receives empty string" ""
 
-}
+# }
 
 # test_network_operations() {
 # }
@@ -470,18 +374,8 @@ declare -A tests=(
 )
 #flow_run tests
 
-#test_user_interactions
-#assert_fails_without2 "Using existing RESOURCE" $(echo "n" | prompt_proceed "RESOURCE")
-
-#run_output_contains out "Operation cancelled by user." run_autoinput 'n' prompt_proceed "RESOURCE"
-
-#assert_fails_without2 "Operation cancelled by user." run_autoinput 'n' prompt_proceed 'RESOURCE'
-
-#run_autoinput 'n' prompt_proceed 'RESOURCE'
-#echo $?
-
 test_user_interactions
-#test_comparisons
-#test_assertions
+test_comparisons
+test_assertions
 
 report_test_summary
