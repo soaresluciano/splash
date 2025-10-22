@@ -7,7 +7,7 @@ TEST_RUNS=0
 TEST_PASSES=0
 TEST_FAILS=0
 
-_process_test() {
+_test_process_result() {
     local test_name="$1"
     local test_result="$2"
     local test_details="${3:-}"
@@ -22,76 +22,12 @@ _process_test() {
     show_test_result "$test_name" "$test_result" "$test_details"
 }
 
-_test_run() {
-    local __outvar="$1"
-    local expected_status="$2"
-    shift 2
-
-    run_cmd_capture result "$@"
-    local cmd_status=${result[status]}
-    local cmd_output=${result[output]}
-    eval "$__outvar=\"\${cmd_output}\""
-
-    local actual_status=$FALSE
-    is_success $cmd_status && actual_status=$TRUE
-    
-    local test_result=$FALSE
-    are_equal_str "$expected_status" "$actual_status" && test_result=$TRUE
-
-    if $debugger_enabled; then
-        echo "--------------------"
-        echo "Method: _test_run"
-        echo "cmd: $@"
-        echo "cmd_status: $cmd_status"
-        echo "expected_status: $expected_status"
-        echo "actual_status: $actual_status"
-        echo "test_result: $test_result"
-        echo "--------------------"
-    fi
-    return "$test_result"
-}
-
-_test_run_and_check_output() {
-    local __outvar="$1"
-    local expected_status="$2"
-    local expected_str="$3"
-    shift 3
-
-    local actual_output
-    _test_run actual_output "$expected_status" "$@"
-    local test_result="$?"
-    
-    local str_found=$FALSE
-    contains_str "$actual_output" "$expected_str" && str_found=$TRUE
-
-    local test_details=""
-    ! is_success $str_found && test_details="The expected string ($expected_str) was not found"
-
-    local final_test_result=$FALSE
-    is_success $test_result && is_success $str_found && final_test_result=$TRUE
-
-    if $debugger_enabled; then
-        echo "--------------------"
-        echo "Method: _test_run_output_contains"
-        echo "cmd: $@"
-        echo "expected_status: $expected_status"
-        echo "expected_str: $expected_str"
-        echo "test_result: $test_result"
-        echo "str_found: $str_found"
-        echo "final test_result: $final_test_result"
-        echo "--------------------"
-    fi
-
-    eval "$__outvar=\"\${test_details}\""
-    return "$final_test_result"
-}
-
 test_pass() {
     local test_name="$1"
     shift
     _test_run actual_output $TRUE "$@"
     local test_result="$?"
-    _process_test "$test_name" "$test_result"
+    _test_process_result "$test_name" "$test_result"
     return "$test_result"
 }
 
@@ -100,7 +36,7 @@ test_fail() {
     shift
     _test_run actual_output $FALSE "$@"
     local test_result="$?"
-    _process_test "$test_name" "$test_result"
+    _test_process_result "$test_name" "$test_result"
     return "$test_result"
 }
 
@@ -110,7 +46,7 @@ test_pass_with_msg() {
     shift 2
     _test_run_and_check_output test_details $TRUE "$expected_msg" "$@"
     local test_result="$?"
-    _process_test "$test_name" "$test_result" "$test_details"
+    _test_process_result "$test_name" "$test_result" "$test_details"
     return "$test_result"
 }
 
@@ -120,7 +56,7 @@ test_fail_with_msg() {
     shift 2
     _test_run_and_check_output test_details $FALSE "$expected_msg" "$@"
     local test_result="$?"
-    _process_test "$test_name" "$test_result" "$test_details"
+    _test_process_result "$test_name" "$test_result" "$test_details"
     return "$test_result"
 }
 

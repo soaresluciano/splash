@@ -1022,6 +1022,74 @@ validate_dependencies() {
     show_success "All dependencies are installed"
 }
 
+# TESTING HELPERS
+#==============================================================================
+
+_test_run() {
+    local __outvar="$1"
+    local expected_status="$2"
+    shift 2
+
+    run_cmd_capture result "$@"
+    local cmd_status=${result[status]}
+    local cmd_output=${result[output]}
+
+    local actual_status=$FALSE
+    is_success $cmd_status && actual_status=$TRUE
+    
+    local test_result=$FALSE
+    are_equal_str "$expected_status" "$actual_status" && test_result=$TRUE
+
+    if $debugger_enabled; then
+        echo "--------------------"
+        echo "Method: _test_run"
+        echo "cmd: $@"
+        echo "cmd_status: $cmd_status"
+        echo "expected_status: $expected_status"
+        echo "actual_status: $actual_status"
+        echo "test_result: $test_result"
+        echo "--------------------"
+    fi
+
+    eval "$__outvar=\"\${cmd_output}\""
+    return "$test_result"
+}
+
+_test_run_and_check_output() {
+    local __outvar="$1"
+    local expected_status="$2"
+    local expected_str="$3"
+    shift 3
+
+    local actual_output
+    _test_run actual_output "$expected_status" "$@"
+    local test_result="$?"
+    
+    local str_found=$FALSE
+    contains_str "$actual_output" "$expected_str" && str_found=$TRUE
+
+    local test_details=""
+    ! is_success $str_found && test_details="The expected string ($expected_str) was not found"
+
+    local final_test_result=$FALSE
+    is_success $test_result && is_success $str_found && final_test_result=$TRUE
+
+    if $debugger_enabled; then
+        echo "--------------------"
+        echo "Method: _test_run_output_contains"
+        echo "cmd: $@"
+        echo "expected_status: $expected_status"
+        echo "expected_str: $expected_str"
+        echo "test_result: $test_result"
+        echo "str_found: $str_found"
+        echo "final test_result: $final_test_result"
+        echo "--------------------"
+    fi
+
+    eval "$__outvar=\"\${test_details}\""
+    return "$final_test_result"
+}
+
 # NETWORK OPERATIONS
 #==============================================================================
 
