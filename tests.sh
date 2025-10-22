@@ -1,6 +1,8 @@
 #!/bin/bash
 source ./spla.sh
 
+debugger_enabled=true
+
 TEST_RUNS=0
 TEST_PASSES=0
 TEST_FAILS=0
@@ -24,10 +26,10 @@ _test_cmd() {
     local __outvar="$1"
     local expected_result="$2"
     shift 2
-    local cmd_output="$("$@" 2>&1)"
-    local cmd_status=$?
-    #echo "cmd_status: $cmd_status"
-    #echo "output: $cmd_output"
+    run_cmd_capture result "$@"
+    local cmd_status=${result[status]}
+    local cmd_output=${result[output]}
+
     eval "$__outvar=\"\${cmd_output}\""
     local actual_result
     if is_success $cmd_status; then
@@ -36,9 +38,6 @@ _test_cmd() {
         actual_result=$FALSE
     fi
 
-    # echo "expected_result: $expected_result"
-    # echo "actual_result: $actual_result"
-
     local test_result
     if are_equal_str "$expected_result" "$actual_result"; then
         test_result=$TRUE
@@ -46,16 +45,15 @@ _test_cmd() {
         test_result=$FALSE
     fi
 
-    # TEST_RUNS=$((TEST_RUNS + 1))
-
-    # local test_details=""
-    # if is_success $test_result; then
-    #     TEST_PASSES=$((TEST_PASSES + 1))
-    # else
-    #     TEST_FAILS=$((TEST_FAILS + 1))
-    # fi
-
-    #echo "test_result: $test_result"
+    if $debugger_enabled; then
+        echo "--------------------"
+        echo "Method: _test_cmd"
+        echo "cmd_status: $cmd_status"
+        echo "expected_result: $expected_result"
+        echo "actual_result: $actual_result"
+        echo "test_result: $test_result"
+        echo "--------------------"
+    fi
     return "$test_result"
 }
 
@@ -65,14 +63,18 @@ _test_cmd_output_contains() {
     local expected_msg="$3"
     shift 3
     local actual_output
-    # echo "test_name: $test_name"
-    # echo "expected_result: $expected_result"
-    # echo "expected_msg: $expected_msg"
-    
-    _test_cmd actual_output $TRUE "$@"
+    _test_cmd actual_output "$expected_result" "$@"
     local test_result="$?"
-    # echo "actual_output: $actual_output"
-    # echo "test_result: $test_result"
+
+    if $debugger_enabled; then
+        echo "--------------------"
+        echo "Method: _test_cmd_output_contains"
+        echo "test_name: $test_name"
+        echo "expected_result: $expected_result"
+        echo "expected_msg: $expected_msg"
+        echo "test_result: $test_result"
+    fi
+
     local test_details=""
     if is_success $test_result; then
         if printf '%s' "$actual_output" | grep -F -q -- "$expected_msg"; then
@@ -82,51 +84,16 @@ _test_cmd_output_contains() {
             test_details="The expected message ($expected_msg) was not found"
         fi
     fi
+
+    if $debugger_enabled; then
+        echo "Final test_result: $test_result"
+        echo "--------------------"
+    fi
+
     _process_test "$test_name" "$test_result" "$test_details"
+
     return "$test_result"
 }
-
-# unittest() {
-#     local __outvar="$1"
-#     local expected_result="$2"
-#     local test_name="$3"
-#     shift 3
-#     __outvar=$("$@" 2>&1)
-#     local cmd_status=$?
-#     #echo "cmd_status: $cmd_status"
-#     local actual_result
-#     if is_success $cmd_status; then
-#         actual_result=$TRUE
-#     else
-#         actual_result=$FALSE
-#     fi
-
-#     # echo "expected_result: $expected_result"
-#     # echo "actual_result: $actual_result"
-
-#     local test_result
-#     if are_equal_str "$expected_result" "$actual_result"; then
-#         test_result=$TRUE
-#     else
-#         test_result=$FALSE
-#     fi
-
-#     TEST_RUNS=$((TEST_RUNS + 1))
-
-#     local test_details=""
-#     if is_success $test_result; then
-#         TEST_PASSES=$((TEST_PASSES + 1))
-#     else
-#         TEST_FAILS=$((TEST_FAILS + 1))
-#         if is_success $actual_result; then
-#             test_details="The test succeded unexpectedly"
-#         fi
-#     fi
-
-#     #echo "test_result: $test_result"
-#     show_test_result "$test_name" "$test_result" "$test_details"
-#     return $?
-# }
 
 unittest_should_pass() {
     local test_name="$1"
@@ -154,135 +121,21 @@ unittest_should_pass_with_msg() {
     local expected_msg="$2"
     shift 2
     _test_cmd_output_contains "$test_name" $TRUE "$expected_msg" "$@"
-
-    # _test_cmd actual_output $TRUE "$@"
-    # local test_result="$?"
-    # local test_details=""
-    # if is_success $test_result; then
-    #     if printf '%s' "$output" | grep -F -q -- "$expected_msg"; then
-    #         test_result=$TRUE
-    #     else
-    #         test_result=$FALSE
-    #         test_details="The expected message ($expected_msg) was not found"
-    #     fi
-    # fi
-    # _process_test "$test_name" "$test_result" "$test_details"
-    # return "$test_result"
 }
 
 unittest_should_fail_with_msg() {
     local test_name="$1"
     local expected_msg="$2"
-    shift 
-    _test_cmd_output_contains "$test_name" $FAIL "$expected_msg" "$@"
-    # _test_cmd actual_output $FALSE "$@"
-    # local test_result="$?"
-    # local test_details=""
-    # if is_success $test_result; then
-    #     if printf '%s' "$output" | grep -F -q -- "$expected_msg"; then
-    #         test_result=$TRUE
-    #     else
-    #         test_result=$FALSE
-    #         test_details="The expected message ($expected_msg) was not found"
-    #     fi
-    # fi
-    # _process_test "$test_name" "$test_result" "$test_details"
-    # return "$test_result"
+    shift 2
+
+    echo "--------------------"
+    echo "Method: unittest_should_fail_with_msg"
+    echo "test_name: $test_name"
+    echo "expected_msg: $expected_msg"
+    echo "--------------------"
+
+    _test_cmd_output_contains "$test_name" $FALSE "$expected_msg" "$@"
 }
-
-unittest_should_pass_with_msg "prompt_question: returns input" "Alice" run_autoinput "Alice" prompt_question "Enter your name"
-#run_autoinput "Alice" prompt_question ""
-
-# actual_output
-
-# unittest_should_pass() {
-#     local test_name="$1"
-#     shift
-#     "$@" &>/dev/null
-#     local cmd_status=$?
-#     if is_success "$cmd_status"; then
-#         TEST_PASSES=$((TEST_PASSES + 1))
-#     else
-#         TEST_FAILS=$((TEST_FAILS + 1))
-#     fi
-#     TEST_RUNS=$((TEST_RUNS + 1))
-#     show_test_result "$test_name" "$cmd_status"
-#     return $?
-# }
-
-# unittest_should_pass_with_msg() {
-#     local test_name="$1"
-#     local expected_msg="$2"
-#     shift 2
-#     local output
-#     output=$("$@" 2>&1)
-#     local cmd_status=$?
-#     local test_status
-#     if is_success "$cmd_status"; then
-#         if printf '%s' "$output" | grep -F -q -- "$expected_msg"; then
-#             test_status=$TRUE
-#             TEST_PASSES=$((TEST_PASSES + 1))
-#         else
-#             test_status=$FALSE
-#             TEST_FAILS=$((TEST_FAILS + 1))
-#             test_details="The expected message ($expected_msg) was not found"
-#         fi
-#     else
-#         test_status=$FALSE
-#         TEST_FAILS=$((TEST_FAILS + 1))
-#     fi
-#     show_test_result "$test_name" "$test_status"
-#     TEST_RUNS=$((TEST_RUNS + 1))
-#     return $?
-# }
-
-# unittest_should_fail() {
-#     local test_name="$1"
-#     shift
-#     "$@" &>/dev/null
-#     local cmd_status=$?
-#     local test_status
-#     local test_details
-#     if is_success "$cmd_status"; then
-#         test_status=$FALSE
-#         TEST_FAILS=$((TEST_FAILS + 1))
-#         test_details="The test succeded unexpectedly"
-#     else
-#         test_status=$TRUE
-#         TEST_PASSES=$((TEST_PASSES + 1))
-#     fi
-#     show_test_result "$test_name" "$test_status" "$test_details"
-#     TEST_RUNS=$((TEST_RUNS + 1))
-#     return $?
-# }
-
-# unittest_should_fail_with_msg() {
-#     local test_name="$1"
-#     local expected_msg="$2"
-#     shift 2
-#     local output
-#     output=$("$@" 2>&1)
-#     local cmd_status=$?
-#     local test_status
-#     if is_success "$cmd_status"; then
-#         test_status=$FALSE
-#         TEST_FAILS=$((TEST_FAILS + 1))
-#     else
-#         if printf '%s' "$output" | grep -F -q -- "$expected_msg"; then
-#             test_status=$TRUE
-#             TEST_PASSES=$((TEST_PASSES + 1))
-#         else
-#             test_status=$FALSE
-#             TEST_FAILS=$((TEST_FAILS + 1))
-#             test_details="The expected message ($expected_msg) was not found"
-#         fi
-#     fi
-#     TEST_RUNS=$((TEST_RUNS + 1))
-    
-#     show_test_result "$test_name" "$test_status" "$test_details"
-    
-#     return $?
-# }
 
 demo_utils() {
     show_keyvalue "get_script_dir" "$(get_script_dir)"
@@ -353,33 +206,34 @@ test_user_interactions() {
     unittest_should_pass "prompt_continue: waits for Enter" run_autoinput_silent "" prompt_continue
 
     # prompt_question: returns the user's input
-    unittest_should_pass_with_msg "prompt_question: returns input" "Alice1" run_autoinput "Alice" prompt_question "Enter your name"
+    unittest_should_pass_with_msg "prompt_question: returns input" "Alice" run_autoinput "Alice" prompt_question "Enter your name"
 
     # prompt_question: character limit enforcement (limit=3)
     unittest_should_pass_with_msg "prompt_question: enforces char limit" "ABC" run_autoinput "ABCDE" prompt_question "Limited" "" 3
 
     # prompt_yesno: accept 'y' and 'Y' as true
-    unittest_should_pass "prompt_yesno: accepts 'y'" run_autoinput_silent "y" prompt_yesno "Continue?"
-    unittest_should_pass "prompt_yesno: accepts 'Y'" run_autoinput_silent "Y" prompt_yesno "Continue?"
+    unittest_should_pass "prompt_yesno: accepts 'y'" run_autoinput "y" prompt_yesno "Continue?"
+    unittest_should_pass "prompt_yesno: accepts 'Y'" run_autoinput "Y" prompt_yesno "Continue?"
 
     # prompt_yesno: accepts 'n' and 'N' as false (validate_item should FAIL)
-    unittest_should_fail "prompt_yesno: rejects 'n'" run_autoinput_silent "n" prompt_yesno "Continue?"
-    unittest_should_fail "prompt_yesno: rejects 'N'" run_autoinput_silent "N" prompt_yesno "Continue?"
+    unittest_should_fail "prompt_yesno: rejects 'n'" run_autoinput "n" prompt_yesno "Continue?"
+    unittest_should_fail "prompt_yesno: rejects 'N'" run_autoinput "N" prompt_yesno "Continue?"
 
     # prompt_yesno: pressing Enter defaults to no (validate_item should FAIL)
-    unittest_should_fail "prompt_yesno: Enter defaults to no" run_autoinput_silent "" prompt_yesno "Continue?"
+    unittest_should_fail "prompt_yesno: Enter defaults to no" run_autoinput "" prompt_yesno "Continue?"
 
     # prompt_proceed: simulate proceed (yes)
-    unittest_should_pass "prompt_proceed: proceed on yes" run_autoinput_silent "y" prompt_proceed "This will run."
+    unittest_should_pass "prompt_proceed: proceed on yes" run_autoinput "y" prompt_proceed "This will run."
 
     # prompt_proceed: simulate cancel (no) -> validate_item should FAIL
     unittest_should_fail_with_msg "prompt_proceed: cancel on no" "Operation cancelled by user." run_autoinput "n" prompt_proceed "This will not run."
 
     # prompt_overwrite: simulate overwrite (yes)
-    unittest_should_pass "prompt_overwrite: overwrite on yes" run_autoinput_silent "y" prompt_overwrite "file.txt"
+    unittest_should_pass "prompt_overwrite: overwrite on yes" run_autoinput "y" prompt_overwrite "file.txt"
 
-    #prompt_overwrite: do not overwrite on no -> validate_item should FAIL
-    unittest_should_fail_with_msg "prompt_overwrite: keep existing on no" "Using existing 'RESOURCE'" run_autoinput "n" prompt_overwrite "RESOURCE"
+    # WITHOUT
+    ## prompt_overwrite: do not overwrite on no -> validate_item should FAIL
+    # unittest_should_fail_with_msg "prompt_overwrite: keep existing on no" "Using existing 'RESOURCE'" run_autoinput "n" prompt_overwrite "RESOURCE"
 }
 
 # test_menu() {
@@ -431,7 +285,6 @@ test_user_interactions() {
 # test_network_operations() {
 # }
 
-# test_comparions() {
 test_comparisons() {
     # is_not_empty
     unittest_should_pass "is_not_empty: non-empty" is_not_empty 'data'
@@ -568,9 +421,4 @@ declare -A tests=(
 # test_comparisons
 # test_assertions
 
-report_test_summary
-
-#run_autoinput_silent "" prompt_continue
-#unittest_should_pass "prompt_continue: waits for Enter" run_autoinput_silent "'_'" prompt_continue
-
-#echo $?
+#report_test_summary

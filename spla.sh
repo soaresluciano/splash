@@ -1472,6 +1472,24 @@ run_and_capture_output() {
     return $__status
 }
 
+run_cmd_capture() {
+    local __resultvar="$1"
+    shift
+
+    local __output __status
+    __output="$(
+        {
+            "$@"
+        } 2>&1
+    )"
+    __status=$?
+
+    # Declare associative array and assign values
+    declare -gA "$__resultvar"
+    eval "$__resultvar[output]=\"\$__output\""
+    eval "$__resultvar[status]=\"\$__status\""
+}
+
 ## Checks if the output of a command contains a given substring
 # Usage:
 #   run_output_contains outvar "substring" command arg1 arg2
