@@ -1,8 +1,6 @@
 #!/bin/bash
 source ./spla.sh
 
-debugger_enabled=false
-
 test_user_interactions() {
     # prompt_continue: simulate pressing Enter (no input)
     testcase_should_pass "prompt_continue: waits for Enter" run_autoinput "" prompt_continue
@@ -133,23 +131,17 @@ test_comparisons() {
     testcase_should_fail "is_integer: float (should fail)" is_integer 3.14
     testcase_should_fail "is_integer: not a number (should fail)" is_integer 'data'
 
-    # is_true
-    testcase_should_pass "is_true: true" is_true $TRUE
-    testcase_should_pass "is_true: true string" is_true "0"
-    testcase_should_fail "is_true: false (should fail)" is_true $FALSE
-    testcase_should_fail "is_true: false string (should fail)" is_true "1"
-
-    # is_false
-    testcase_should_pass "is_false: false" is_false $FALSE
-    testcase_should_pass "is_false: false string" is_false "1"
-    testcase_should_fail "is_false: true (should fail)" is_false $TRUE
-    testcase_should_fail "is_false: true string (should fail)" is_false "0"
+    # is_failure
+    testcase_should_pass "is_failure: failure" is_failure $failure
+    testcase_should_pass "is_failure: 1 string" is_failure "1"
+    testcase_should_fail "is_failure: success (should fail)" is_failure $success
+    testcase_should_fail "is_failure: 0 string (should fail)" is_failure "0"
 
     # is_success
-    testcase_should_pass "is_success: success" is_success $TRUE
-    testcase_should_pass "is_success: success string" is_success "0"
-    testcase_should_fail "is_success: failure (should fail)" is_success $FALSE
-    testcase_should_fail "is_success: failure string (should fail)" is_success "1"
+    testcase_should_pass "is_success: success" is_success $success
+    testcase_should_pass "is_success: 0 string" is_success "0"
+    testcase_should_fail "is_success: failure (should fail)" is_success $failure
+    testcase_should_fail "is_success: 1 string (should fail)" is_success "1"
 
     # contains_str
     testcase_should_pass "contains_str: contains" contains_str "Hello, world!" "world"

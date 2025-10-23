@@ -10,9 +10,9 @@
 # CONSTANTS
 #==============================================================================
 
-# Boolean constants using bash convention (0 = true, 1 = false)
-TRUE=0
-FALSE=1
+# Boolean constants using bash convention (0 = success, 1 = failure)
+success=0
+failure=1
 
 # COLOR CODES AND FORMATTING
 #==============================================================================
@@ -269,7 +269,7 @@ prompt_question() {
 }
 
 # Prompts user for yes/no confirmation
-# Returns TRUE for yes, FALSE for no
+# Returns success for yes, failure for no
 # Usage: if prompt_yesno "Continue?"; then ... fi
 prompt_yesno() {
     local question="$1"
@@ -279,31 +279,31 @@ prompt_yesno() {
 }
 
 # Prompts user to proceed with an operation
-# Returns TRUE if user wants to proceed, FALSE otherwise
+# Returns success if user wants to proceed, failure otherwise
 # Usage: if prompt_proceed "This will delete all files"; then ... fi
 prompt_proceed() {
     local description="$1"
     show_warning "$description"
     if prompt_yesno "Do you want to proceed?"; then
-        return $TRUE
+        return $success
     else
         show_log "Operation cancelled by user."
-        return $FALSE
+        return $failure
     fi
 }
 
 # Prompts user about overwriting an existing resource
-# Returns TRUE if user wants to overwrite, FALSE otherwise
+# Returns success if user wants to overwrite, failure otherwise
 # Usage: if prompt_overwrite "config file"; then ... fi
 prompt_overwrite() {
     local resource_name="$1"
     show_warning "The '$resource_name' already exists."
     if prompt_yesno "Do you want to overwrite it?"; then
         show_log "The '$resource_name' will be overwritten."
-        return $TRUE
+        return $success
     else
         show_log "Using existing '$resource_name'."
-        return $FALSE
+        return $failure
     fi
 }
 
@@ -326,7 +326,7 @@ prompt_menu() {
     }
     # Capture user input
     local choice
-    while true; do
+    while success; do
         read -p "> " -n1 choice
         echo >&2  # move to new line after single character input
         if [[ "$choice" =~ ^[1-9][0-9]*$ ]] && (( choice >= 1 && choice <= i - 1 )); then
@@ -370,7 +370,7 @@ file_get_permissions() {
 }
 
 # Checks if a file or directory exists
-# Returns TRUE if path exists, FALSE if it doesn't
+# Returns success if path exists, failure if it doesn't
 # Usage: if path_exists "/my/path" [-no-log]; then ... fi
 # Parameters:
 #   path: Path to check
@@ -380,13 +380,13 @@ path_exists() {
     local path="${_PARSED_ARGS[0]}"
     [ -e "$path" ]  || {
         _log_is_on && show_error "The path '$path' does not exist."
-        return $FALSE
+        return $failure
     }
-    return $TRUE
+    return $success
 }
 
 # Checks if a file or directory is readable
-# Returns TRUE if file is readable, FALSE if it isn't
+# Returns success if file is readable, failure if it isn't
 # Usage: if path_is_readable "myfile.txt" [--no-log]; then ... fi
 # Parameters:
 #   path: Path to check
@@ -396,13 +396,13 @@ path_is_readable() {
     local path="${_PARSED_ARGS[0]}"
     [ -r "$path" ]  || {
         _log_is_on && show_error "The path '$path' is not readable."
-        return $FALSE
+        return $failure
     }
-    return $TRUE
+    return $success
 }
 
 # Checks if a file exists and is writable
-# Returns TRUE if file exists and is writable, FALSE if it isn't
+# Returns success if file exists and is writable, failure if it isn't
 # Usage: if path_is_writable "myfile.txt" [--no-log]; then ... fi
 # Parameters:
 #   path: Path to the file to check
@@ -412,13 +412,13 @@ path_is_writable() {
     local path="${_PARSED_ARGS[0]}"
     [ -w "$path" ]  || {
         _log_is_on && show_error "The path '$path' is not writable."
-        return $FALSE
+        return $failure
     }
-    return $TRUE
+    return $success
 }
 
 # Checks if a file exists
-# Returns TRUE if file exists, FALSE if it doesn't
+# Returns success if file exists, failure if it doesn't
 # Usage: if file_exists "myfile.txt" [--no-log]; then ... fi
 # Parameters:
 #   filename: Path to the file to check
@@ -428,13 +428,13 @@ file_exists() {
     local filename="${_PARSED_ARGS[0]}"
     [ -f "$filename" ]  || {
         _log_is_on && show_error "The file '$filename' does not exist."
-        return $FALSE
+        return $failure
     }
-    return $TRUE
+    return $success
 }
 
 # Checks if a directory exists
-# Returns TRUE if directory exists, FALSE if it doesn't
+# Returns success if directory exists, failure if it doesn't
 # Usage: if dir_exists "/my/directory" [--no-log]; then ... fi
 # Parameters:
 #   dir: Path to the directory to check
@@ -444,13 +444,13 @@ dir_exists() {
     local dir="${_PARSED_ARGS[0]}"
     [ -d "$dir" ]  || {
         _log_is_on && show_error "The directory '$dir' does not exist."
-        return $FALSE
+        return $failure
     }
-    return $TRUE
+    return $success
 }
 
 # Checks if a directory exists and is readable
-# Returns TRUE if directory exists and is readable, FALSE if it isn't
+# Returns success if directory exists and is readable, failure if it isn't
 # Usage: if dir_is_readable "/my/directory" [--sudo] [--no-log]; then ... fi
 # Parameters:
 #   dir: Path to the directory to check
@@ -467,7 +467,7 @@ dir_is_readable() {
 }
 
 # Checks if a directory exists and is writable
-# Returns TRUE if directory exists and is writable, FALSE if it isn't
+# Returns success if directory exists and is writable, failure if it isn't
 # Usage: if dir_is_writable "/my/directory" [--sudo] [--no-log]; then ... fi
 # Parameters:
 #   dir: Path to the directory to check
@@ -484,7 +484,7 @@ dir_is_writable() {
 }
 
 # Checks if a file exists and is readable
-# Returns TRUE if file exists and is readable, FALSE if it isn't
+# Returns success if file exists and is readable, failure if it isn't
 # Usage: if file_is_readable "myfile.txt" [--sudo] [--no-log]; then ... fi
 # Parameters:
 #   filename: Path to the file to check
@@ -501,7 +501,7 @@ file_is_readable() {
 }
 
 # Checks if a file exists and is writable
-# Returns TRUE if file exists and is writable, FALSE if it isn't
+# Returns success if file exists and is writable, failure if it isn't
 # Usage: if file_is_writable "myfile.txt" [--sudo] [--no-log]; then ... fi
 # Parameters:
 #   filename: Path to the file to check
@@ -574,7 +574,7 @@ file_str_append() {
 #   pairs: Array of strings in format "search/replace" (slash-separated)
 #   --sudo: Use sudo for the file operations - Optional boolean flag
 # Examples:
-#   file_str_replace "config.txt" "old_value/new_value" "debug=true/debug=false"
+#   file_str_replace "config.txt" "old_value/new_value" "debug=success/debug=false"
 #   file_str_replace "system.conf" "localhost/production.server" "port=3000/port=8080"
 #   file_str_replace "/etc/hosts" "127.0.0.1/192.168.1.1" --sudo
 file_str_replace() {
@@ -597,7 +597,7 @@ file_str_contains() {
     local substring="${_PARSED_ARGS[1]}"
     _build_args file_is_readable "$filename" || {
         show_error "The file '$filename' cannot be checked."
-        return $FALSE
+        return $failure
     }
     ${_SUDO_CMD}grep -qF "$substring" "$filename"
     return $?
@@ -829,7 +829,7 @@ sudoing () {
 }
 
 # Checks if a command exists in the system
-# Returns TRUE if command exists, FALSE if it doesn't
+# Returns success if command exists, failure if it doesn't
 # Usage: if command_exists "git"; then ... fi
 command_exists() {
     echo "$(run_silent command -v "$1")"
@@ -974,21 +974,21 @@ download_file() {
 
 # Checks if a string is empty
 # Usage: if is_empty "$variable"; then ... fi
-# Returns TRUE if string is empty, FALSE if it has content
+# Returns success if string is empty, failure if it has content
 is_empty() {
     [ -z "$1" ]
 }
 
 # Checks if a string is not empty
 # Usage: if is_not_empty "$variable"; then ... fi
-# Returns TRUE if string is not empty, FALSE if it is empty
+# Returns success if string is not empty, failure if it is empty
 is_not_empty() {
     [ -n "$1" ]
 }
 
 # Compares two strings for exact equality
 # Performs case-sensitive string comparison
-# Returns TRUE if strings are identical, FALSE otherwise
+# Returns success if strings are identical, failure otherwise
 # Usage: if are_equal_str "hello" "hello"; then ... fi
 # Parameters:
 #   string1: First string to compare
@@ -999,7 +999,7 @@ are_equal_str() {
 
 # Compares two strings for equality ignoring case differences
 # Converts both strings to lowercase before comparison
-# Returns TRUE if strings are equal (case-insensitive), FALSE otherwise
+# Returns success if strings are equal (case-insensitive), failure otherwise
 # Usage: if are_equal_str_ignore_case "Hello" "HELLO"; then ... fi
 # Parameters:
 #   string1: First string to compare
@@ -1010,7 +1010,7 @@ are_equal_str_ignore_case() {
 
 # Compares two numbers for arithmetic equality
 # Treats both parameters as integers and performs numeric comparison
-# Returns TRUE if numbers are mathematically equal, FALSE otherwise
+# Returns success if numbers are mathematically equal, failure otherwise
 # Will error if either parameter is not a valid integer
 # Usage: if are_equal_num "10" "10"; then ... fi
 # Parameters:
@@ -1022,7 +1022,7 @@ are_equal_num() {
 
 # Checks if the first number is arithmetically greater than the second
 # Treats both parameters as integers and performs numeric comparison
-# Returns TRUE if first number > second number, FALSE otherwise
+# Returns success if first number > second number, failure otherwise
 # Will error if either parameter is not a valid integer
 # Usage: if is_greater_than "15" "10"; then ... fi
 # Parameters:
@@ -1034,7 +1034,7 @@ is_greater_than() {
 
 # Checks if the first number is arithmetically greater than or equal to the second
 # Treats both parameters as integers and performs numeric comparison
-# Returns TRUE if first number >= second number, FALSE otherwise
+# Returns success if first number >= second number, failure otherwise
 # Will error if either parameter is not a valid integer
 # Usage: if is_greater_than_or_equal "10" "10"; then ... fi
 # Parameters:
@@ -1046,7 +1046,7 @@ is_greater_than_or_equal() {
 
 # Checks if the first number is arithmetically less than the second
 # Treats both parameters as integers and performs numeric comparison
-# Returns TRUE if first number < second number, FALSE otherwise
+# Returns success if first number < second number, failure otherwise
 # Will error if either parameter is not a valid integer
 # Usage: if is_less_than "5" "10"; then ... fi
 # Parameters:
@@ -1058,7 +1058,7 @@ is_less_than() {
 
 # Checks if the first number is arithmetically less than or equal to the second
 # Treats both parameters as integers and performs numeric comparison
-# Returns TRUE if first number <= second number, FALSE otherwise
+# Returns success if first number <= second number, failure otherwise
 # Will error if either parameter is not a valid integer
 # Usage: if is_less_than_or_equal "10" "15"; then ... fi
 # Parameters:
@@ -1069,7 +1069,7 @@ is_less_than_or_equal() {
 }
 
 # Checks if a string represents a valid integer number
-# Returns TRUE if the string is a valid integer, FALSE otherwise
+# Returns success if the string is a valid integer, failure otherwise
 # Usage: if is_integer "$variable"; then ... fi
 # Parameters:
 #   value: Value to check
@@ -1077,38 +1077,30 @@ is_integer() {
     [[ "$1" =~ ^-?[0-9]+$ ]]
 }
 
-# Checks if a value represents TRUE
-# Returns TRUE if the value is equal to TRUE constant, FALSE otherwise
-# Usage: if is_true "$variable"; then ... fi
-# Parameters:
-#   value: Value to check
-is_true() {
-    are_equal_str "$1" "$TRUE"
-}
-
-# Checks if a value represents FALSE
-# Returns TRUE if the value is equal to FALSE constant, FALSE otherwise
-# Usage: if is_false "$variable"; then ... fi
-# Parameters:
-#   value: Value to check
-is_false() {
-    are_equal_str "$1" "$FALSE"
-}
-
-# Checks if a value represents SUCCESS (TRUE)
-# Alias for is_true function
+# Checks if a value represents success
+# Returns success if the value is equal to success constant, failure otherwise
 # Usage: if is_success "$variable"; then ... fi
 # Parameters:
 #   value: Value to check
 is_success() {
-    is_true "$1"
+    are_equal_str "$1" "$success"
 }
 
-# Checks if a value represents FAILURE (FALSE)
-# Alias for is_false function
+# Checks if a value represents failure
+# Returns success if the value is equal to failure constant, failure otherwise
 # Usage: if is_failure "$variable"; then ... fi
 # Parameters:
 #   value: Value to check
+is_failure() {
+    are_equal_str "$1" "$failure"
+}
+
+# Checks if a string contains a specified substring
+# Returns success if substring is found within the string, failure otherwise
+# Usage: if contains_str "Hello, world!" "world"; then ... fi
+# Parameters:
+#   string: The main string to search within
+#   substring: The substring to search for
 contains_str() {
     local string="$1"
     local substring="$2"
@@ -1125,11 +1117,11 @@ contains_str() {
 # Parameters:
 #   value: The value to check for emptiness
 #   error_message: Optional custom error message (defaults to generic assertion message)
-# Returns: TRUE if value is empty, FALSE and shows error if not
+# Returns: success if value is empty, failure and shows error if not
 assert_is_empty() {
     local value="$1"
     local error_message="${2:-Assertion failed: Expected empty value, but got non-empty.}"
-    is_empty "$value" && return $TRUE || { show_error "$error_message"; return $FALSE; }
+    is_empty "$value" && return $success || { show_error "$error_message"; return $failure; }
 }
 
 # Asserts that a value is not empty and displays an error message if it is
@@ -1138,11 +1130,11 @@ assert_is_empty() {
 # Parameters:
 #   value: The value to check for content
 #   error_message: Optional custom error message (defaults to generic assertion message)
-# Returns: TRUE if value is not empty, FALSE and shows error if empty
+# Returns: success if value is not empty, failure and shows error if empty
 assert_is_not_empty() {
     local value="$1"
     local error_message="${2:-Assertion failed: Expected non-empty value, but got empty.}"
-    is_not_empty "$value" && return $TRUE || { show_error "$error_message"; return $FALSE; }
+    is_not_empty "$value" && return $success || { show_error "$error_message"; return $failure; }
 }
 
 # Asserts that two strings are equal (case-sensitive) and displays an error message if not
@@ -1152,12 +1144,12 @@ assert_is_not_empty() {
 #   str1: First string to compare
 #   str2: Second string to compare
 #   error_message: Optional custom error message (defaults to showing both values)
-# Returns: TRUE if strings are equal, FALSE and shows error if not
+# Returns: success if strings are equal, failure and shows error if not
 assert_are_equal_str() {
     local str1="$1"
     local str2="$2"
     local error_message="${3:-Assertion failed: Expected '$str1' to equal '$str2'.}"
-    are_equal_str "$str1" "$str2" && return $TRUE || { show_error "$error_message"; return $FALSE; }
+    are_equal_str "$str1" "$str2" && return $success || { show_error "$error_message"; return $failure; }
 }
 
 # Asserts that two strings are equal ignoring case and displays an error message if not
@@ -1167,12 +1159,12 @@ assert_are_equal_str() {
 #   str1: First string to compare
 #   str2: Second string to compare
 #   error_message: Optional custom error message (defaults to showing both values)
-# Returns: TRUE if strings are equal (case-insensitive), FALSE and shows error if not
+# Returns: success if strings are equal (case-insensitive), failure and shows error if not
 assert_are_equal_str_ignore_case() {
     local str1="$1"
     local str2="$2"
     local error_message="${3:-Assertion failed: Expected '$str1' to equal '$str2' (case-insensitive).}"
-    are_equal_str_ignore_case "$str1" "$str2" && return $TRUE || { show_error "$error_message"; return $FALSE; }
+    are_equal_str_ignore_case "$str1" "$str2" && return $success || { show_error "$error_message"; return $failure; }
 }
 
 # Asserts that two numbers are arithmetically equal and displays an error message if not
@@ -1183,12 +1175,12 @@ assert_are_equal_str_ignore_case() {
 #   num1: First number to compare (must be a valid integer)
 #   num2: Second number to compare (must be a valid integer)
 #   error_message: Optional custom error message (defaults to showing both values)
-# Returns: TRUE if numbers are equal, FALSE and shows error if not
+# Returns: success if numbers are equal, failure and shows error if not
 assert_are_equal_num() {
     local num1="$1"
     local num2="$2"
     local error_message="${3:-Assertion failed: Expected '$num1' to equal '$num2'.}"
-    are_equal_num "$num1" "$num2" && return $TRUE || { show_error "$error_message"; return $FALSE; }
+    are_equal_num "$num1" "$num2" && return $success || { show_error "$error_message"; return $failure; }
 }
 
 # Asserts that first number is greater than second and displays an error message if not
@@ -1199,12 +1191,12 @@ assert_are_equal_num() {
 #   num1: First number to compare (must be a valid integer)
 #   num2: Second number to compare (must be a valid integer)
 #   error_message: Optional custom error message (defaults to showing both values)
-# Returns: TRUE if num1 > num2, FALSE and shows error if not
+# Returns: success if num1 > num2, failure and shows error if not
 assert_is_greater_than() {
     local num1="$1"
     local num2="$2"
     local error_message="${3:-Assertion failed: Expected '$num1' to be greater than '$num2'.}"
-    is_greater_than "$num1" "$num2" && return $TRUE || { show_error "$error_message"; return $FALSE; }
+    is_greater_than "$num1" "$num2" && return $success || { show_error "$error_message"; return $failure; }
 }
 
 # Asserts that first number is greater than or equal to second and displays an error message if not
@@ -1215,12 +1207,12 @@ assert_is_greater_than() {
 #   num1: First number to compare (must be a valid integer)
 #   num2: Second number to compare (must be a valid integer)
 #   error_message: Optional custom error message (defaults to showing both values)
-# Returns: TRUE if num1 >= num2, FALSE and shows error if not
+# Returns: success if num1 >= num2, failure and shows error if not
 assert_is_greater_than_or_equal() {
     local num1="$1"
     local num2="$2"
     local error_message="${3:-Assertion failed: Expected '$num1' to be greater than or equal to '$num2'.}"
-    is_greater_than_or_equal "$num1" "$num2" && return $TRUE || { show_error "$error_message"; return $FALSE; }
+    is_greater_than_or_equal "$num1" "$num2" && return $success || { show_error "$error_message"; return $failure; }
 }
 
 # Asserts that first number is less than second and displays an error message if not
@@ -1231,12 +1223,12 @@ assert_is_greater_than_or_equal() {
 #   num1: First number to compare (must be a valid integer)
 #   num2: Second number to compare (must be a valid integer)
 #   error_message: Optional custom error message (defaults to showing both values)
-# Returns: TRUE if num1 < num2, FALSE and shows error if not
+# Returns: success if num1 < num2, failure and shows error if not
 assert_is_less_than() {
     local num1="$1"
     local num2="$2"
     local error_message="${3:-Assertion failed: Expected '$num1' to be less than '$num2'.}"
-    is_less_than "$num1" "$num2" && return $TRUE || { show_error "$error_message"; return $FALSE; }
+    is_less_than "$num1" "$num2" && return $success || { show_error "$error_message"; return $failure; }
 }
 
 # Asserts that first number is less than or equal to second and displays an error message if not
@@ -1247,12 +1239,12 @@ assert_is_less_than() {
 #   num1: First number to compare (must be a valid integer)
 #   num2: Second number to compare (must be a valid integer)
 #   error_message: Optional custom error message (defaults to showing both values)
-# Returns: TRUE if num1 <= num2, FALSE and shows error if not
+# Returns: success if num1 <= num2, failure and shows error if not
 assert_is_less_than_or_equal() {
     local num1="$1"
     local num2="$2"
     local error_message="${3:-Assertion failed: Expected '$num1' to be less than or equal to '$num2'.}"
-    is_less_than_or_equal "$num1" "$num2" && return $TRUE || { show_error "$error_message"; return $FALSE; }
+    is_less_than_or_equal "$num1" "$num2" && return $success || { show_error "$error_message"; return $failure; }
 }
 
 # Asserts that the output of a command contains a given substring and matches expected status
@@ -1264,8 +1256,8 @@ assert_is_less_than_or_equal() {
 #   command: The command to run
 #   arg1, arg2, ...: Arguments to pass to the command
 # Returns:
-#   TRUE if the output contains the substring and status matches
-#   FALSE and shows error if not
+#   success if the output contains the substring and status matches
+#   failure and shows error if not
 assert_output_contains() {
     local expected_status="$1"
     local expected_msg="$2"
@@ -1274,7 +1266,7 @@ assert_output_contains() {
     run_output_contains actual_status "$expected_msg" "$@"
     local result=$?
     local error_message="The command returned an unexpected status: $actual_status"
-    are_equal_num "$actual_status" "$expected_status" || { show_error "$error_message"; return $FALSE; }
+    are_equal_num "$actual_status" "$expected_status" || { show_error "$error_message"; return $failure; }
     return $result
 }
 
@@ -1410,12 +1402,12 @@ run_cmd_capture() {
 # Usage: _testcase_run outvar expected_status command arg1 arg2
 # Parameters:
 #   outvar: Name of variable to receive command output
-#   expected_status: Expected exit status (TRUE/FALSE)
+#   expected_status: Expected exit status (success/failure)
 #   command: Command to run
 #   arg1, arg2, ...: Arguments to pass to the command
 # Returns:
 #   Populates outvar with command output
-#   Returns TRUE if command status matches expected_status, FALSE otherwise
+#   Returns success if command status matches expected_status, failure otherwise
 _testcase_run() {
     local __outvar="$1"
     local expected_status="$2"
@@ -1425,11 +1417,11 @@ _testcase_run() {
     local cmd_status=${result[status]}
     local cmd_output=${result[output]}
 
-    local actual_status=$FALSE
-    is_success $cmd_status && actual_status=$TRUE
+    local actual_status=$failure
+    is_success $cmd_status && actual_status=$success
     
-    local test_result=$FALSE
-    are_equal_str "$expected_status" "$actual_status" && test_result=$TRUE
+    local test_result=$failure
+    are_equal_str "$expected_status" "$actual_status" && test_result=$success
 
     eval "$__outvar=\"\${cmd_output}\""
     return "$test_result"
@@ -1438,7 +1430,7 @@ _testcase_run() {
 # Defines and runs a test case with expected status and optional output matching
 # Usage: testcase expected_status "test name" "expected substring" command arg1 arg2
 # Parameters:
-#   expected_status: Expected exit status (TRUE/FALSE)
+#   expected_status: Expected exit status (success/failure)
 #   test_name: Name/description of the test case
 #   expected_str: Optional substring expected to be found in command output
 #   command: Command to run
@@ -1457,14 +1449,14 @@ testcase() {
     local test_details final_test_result
 
     if is_not_empty "$expected_str"; then
-        local str_found=$FALSE
-        contains_str "$actual_output" "$expected_str" && str_found=$TRUE
+        local str_found=$failure
+        contains_str "$actual_output" "$expected_str" && str_found=$success
 
         test_details=""
         ! is_success $str_found && test_details="The expected string ($expected_str) was not found"
 
-        final_test_result=$FALSE
-        is_success $testrun_result && is_success $str_found && final_test_result=$TRUE
+        final_test_result=$failure
+        is_success $testrun_result && is_success $str_found && final_test_result=$success
     else
         final_test_result=$testrun_result
         test_details=""
@@ -1482,14 +1474,14 @@ testcase() {
 testcase_should_pass() {
     local test_name="$1"
     shift
-    testcase $TRUE "$test_name" "" "$@"
+    testcase $success "$test_name" "" "$@"
 }
 
 # Defines a test case that is expected to fail
 testcase_should_fail() {
     local test_name="$1"
     shift
-    testcase  $FALSE "$test_name" "" "$@"
+    testcase  $failure "$test_name" "" "$@"
 }
 
 # Defines a test case that is expected to pass and match a given output substring
@@ -1497,7 +1489,7 @@ testcase_should_pass_and_match() {
     local test_name="$1"
     local expected_msg="$2"
     shift 2
-    testcase $TRUE "$test_name" "$expected_msg" "$@"
+    testcase $success "$test_name" "$expected_msg" "$@"
 }
 
 # Defines a test case that is expected to fail and match a given output substring
@@ -1505,7 +1497,7 @@ testcase_should_fail_and_match() {
     local test_name="$1"
     local expected_msg="$2"
     shift 2
-    testcase $FALSE "$test_name" "$expected_msg" "$@"
+    testcase $failure "$test_name" "$expected_msg" "$@"
 }
 
 # Runs a series of test cases and summarizes results
@@ -1584,7 +1576,7 @@ validate_cmd_show_suggestion() {
     local description="$1"
     local fix_suggestion="$2"
     shift 2
-    _testcase_run actual_output "$TRUE" "$@"
+    _testcase_run actual_output "$success" "$@"
     local testrun_result=$?
     show_test_result "Validation: $description" "$testrun_result" "" "$fix_suggestion"
     return $testrun_result
@@ -1597,15 +1589,15 @@ validate_cmd_show_suggestion() {
 validate_dependencies() {
     local required_dependencies=("$@")
     local missing_dependencies=()
-    local validation_failed=false
+    local validation_failed=failure
     show_header "Checking dependencies"
     for dep in "${required_dependencies[@]}"; do
         if ! validate_cmd "$dep" command_exists "$dep"; then
             missing_dependencies+=("$dep")
-            validation_failed=true
+            validation_failed=success
         fi
     done
-    if [ "$validation_failed" = true ]; then
+    if [ "$validation_failed" = success ]; then
         show_warning "Missing dependencies: ${missing_dependencies[*]}"
         show_error "The script cannot continue without these dependencies."
         show_suggestion "Please install them and re-run the script."
@@ -1656,12 +1648,12 @@ _parse_flags_and_args() {
     
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --sudo) _USE_SUDO=$TRUE; shift ;;
-            --no-sudo) _USE_SUDO=$FALSE; shift ;;
-            --log) _USE_LOG=$TRUE; shift ;;
-            --no-log) _USE_LOG=$FALSE; shift ;;
-            --ask) _USE_ASK=$TRUE; shift ;;
-            --no-ask) _USE_ASK=$FALSE; shift ;;
+            --sudo) _USE_SUDO=$success; shift ;;
+            --no-sudo) _USE_SUDO=$failure; shift ;;
+            --log) _USE_LOG=$success; shift ;;
+            --no-log) _USE_LOG=$failure; shift ;;
+            --ask) _USE_ASK=$success; shift ;;
+            --no-ask) _USE_ASK=$failure; shift ;;
             *) args_ref+=("$1"); shift ;;
         esac
     done
@@ -1670,9 +1662,9 @@ _parse_flags_and_args() {
 # Common parameter parsing logic - returns parsed values via global variables
 # This is internal and resets state each time to avoid bugs
 _parse_common_params() {
-    _USE_SUDO=$FALSE
-    _USE_LOG=$TRUE
-    _USE_ASK=$FALSE
+    _USE_SUDO=$failure
+    _USE_LOG=$success
+    _USE_ASK=$failure
     _PARSED_ARGS=()
     _SUDO_CMD=""
     
@@ -1712,19 +1704,19 @@ _build_args() {
     return $result
 }
 
-# Returns TRUE if sudo is enabled, FALSE otherwise
+# Returns success if sudo is enabled, failure otherwise
 _sudo_is_on() {
-    are_equal_num "$_USE_SUDO" $TRUE
+    are_equal_num "$_USE_SUDO" $success
 }
 
-# Returns TRUE if logging is enabled, FALSE otherwise
+# Returns success if logging is enabled, failure otherwise
 _log_is_on() {
-    are_equal_num "$_USE_LOG" $TRUE
+    are_equal_num "$_USE_LOG" $success
 }
 
-# Returns TRUE if sudo is enabled, FALSE otherwise
+# Returns success if sudo is enabled, failure otherwise
 _ask_is_on() {
-    are_equal_num "$_USE_ASK" $TRUE
+    are_equal_num "$_USE_ASK" $success
 }
 
 #==============================================================================
