@@ -944,237 +944,6 @@ system_display_server() {
     fi
 }
 
-# VALIDATIONS
-#==============================================================================
-
-validate_cmd() {
-    local description="$1"
-    shift
-    local command="$@"
-    validate_cmd_with_suggestion "$description" "" "$command"
-    return $?
-}
-
-validate_cmd_with_suggestion() {
-    local description="$1"
-    local fix_suggestion="$2"
-    shift 2
-    local command="$@"
-    echo -n "🔍 Validating $description..."
-    if eval "$command" &>/dev/null; then
-        show_success "OK"
-        return 0
-    else
-        show_error "FAIL"
-        if is_not_empty "$fix_suggestion"; then
-            show_suggestion "Suggestion: $fix_suggestion"
-        fi
-        return 1
-    fi
-}
-
-# Validates a single item with a description, validation command, and optional fix suggestion
-# Usage: validate_item "Git installation" "command_exists git" "Install Git using your package manager"
-# Parameters:
-#   description: Description of the item being validated
-#   validation_command: Command to validate the item (should return TRUE/FALSE)
-#   fix_suggestion: Optional suggestion on how to fix the issue if validation fails
-validate_item() {
-    local description="$1"
-    local validation_command="$2"
-    local fix_suggestion="${3:-}"
-    
-    echo -n "🔍 Checking $description..."
-
-    if are_equal_str "$validation_command" "0" || eval "$validation_command" &>/dev/null; then
-        show_success "OK"
-        return 0
-    else
-        show_error "FAIL"
-        if is_not_empty "$fix_suggestion"; then
-            show_suggestion "Fix: $fix_suggestion"
-        fi
-        return 1
-    fi
-}
-
-# Validates multiple dependencies and exits if any are missing
-# Usage: validate_dependencies "git" "curl" "wget"
-# Parameters:
-#   required_dependencies: Array of command names to validate
-validate_dependencies() {
-    local required_dependencies=("$@")
-    local missing_dependencies=()
-    local validation_failed=false
-    show_header "Checking dependencies"
-    for dep in "${required_dependencies[@]}"; do
-        if ! validate_item "$dep" "command_exists $dep" "Install '$dep'"; then
-            missing_dependencies+=("$dep")
-            validation_failed=true
-        fi
-    done
-    if [ "$validation_failed" = true ]; then
-        show_warning "Missing dependencies: ${missing_dependencies[*]}"
-        show_error "The script cannot continue without these dependencies."
-        show_suggestion "Please install them and re-run the script."
-        exit 1
-    fi
-    show_success "All dependencies are installed"
-}
-
-# TESTING HELPERS
-#==============================================================================
-
-_testcase_run() {
-    local __outvar="$1"
-    local expected_status="$2"
-    shift 2
-
-    run_cmd_capture result "$@"
-    local cmd_status=${result[status]}
-    local cmd_output=${result[output]}
-
-    local actual_status=$FALSE
-    is_success $cmd_status && actual_status=$TRUE
-    
-    local test_result=$FALSE
-    are_equal_str "$expected_status" "$actual_status" && test_result=$TRUE
-
-    if $debugger_enabled; then
-        echo "--------------------"
-        echo "Method: _unit_test_run"
-        echo "cmd: $@"
-        echo "cmd_status: $cmd_status"
-        echo "expected_status: $expected_status"
-        echo "actual_status: $actual_status"
-        echo "test_result: $test_result"
-        echo "--------------------"
-    fi
-
-    eval "$__outvar=\"\${cmd_output}\""
-    return "$test_result"
-}
-
-_testcase_run_and_match() {
-    local __outvar="$1"
-    local expected_status="$2"
-    local expected_str="$3"
-    shift 3
-
-    local actual_output
-    _testcase_run actual_output "$expected_status" "$@"
-    local test_result="$?"
-    
-    local str_found=$FALSE
-    contains_str "$actual_output" "$expected_str" && str_found=$TRUE
-
-    local test_details=""
-    ! is_success $str_found && test_details="The expected string ($expected_str) was not found"
-
-    local final_test_result=$FALSE
-    is_success $test_result && is_success $str_found && final_test_result=$TRUE
-
-    if $debugger_enabled; then
-        echo "--------------------"
-        echo "Method: _test_run_output_contains"
-        echo "cmd: $@"
-        echo "expected_status: $expected_status"
-        echo "expected_str: $expected_str"
-        echo "test_result: $test_result"
-        echo "str_found: $str_found"
-        echo "final test_result: $final_test_result"
-        echo "--------------------"
-    fi
-
-    eval "$__outvar=\"\${test_details}\""
-    return "$final_test_result"
-}
-
-testcase() {
-    local expected_status="$1"
-    local test_name="$2"
-    local expected_str="${3:-}"
-    shift 3
-
-    local test_result
-    if is_not_empty "$expected_str"; then
-        _testcase_run_and_match test_details "$expected_status" "$expected_str" "$@"
-        test_result=$?
-    else
-        _testcase_run output "$expected_status" "$@"
-        test_result=$?
-        test_details=""
-    fi
-
-    show_test_result "$test_name" "$test_result" "$test_details"
-
-    TEST_RUNS=$((TEST_RUNS + 1))
-    if is_success "$test_result"; then
-        TEST_PASSES=$((TEST_PASSES + 1))
-    else
-        TEST_FAILS=$((TEST_FAILS + 1))
-    fi
-
-    return $test_result
-}
-
-testcase_should_pass() {
-    local test_name="$1"
-    shift
-    testcase $TRUE "$test_name" "" "$@"
-}
-
-testcase_should_fail() {
-    local test_name="$1"
-    shift
-
-    testcase  $FALSE "$test_name" "" "$@"
-}
-
-testcase_should_pass_and_match() {
-    local test_name="$1"
-    local expected_msg="$2"
-    shift 2
-
-    testcase $TRUE "$test_name" "$expected_msg" "$@"
-}
-
-testcase_should_fail_and_match() {
-    local test_name="$1"
-    local expected_msg="$2"
-    shift 2
-
-    testcase $FALSE "$test_name" "$expected_msg" "$@"
-}
-
-# Runs a series of test cases and summarizes results
-# Usage: test_fixture_run <testcase1> <testcase2> ...
-# Parameters:
-#   testcases: Array of test case function names to execute
-test_fixture_run() {
-    local title="${1}"
-    shift
-    TEST_RUNS=0
-    TEST_PASSES=0
-    TEST_FAILS=0
-
-    show_title "$title"
-
-    for tc in "$@"; do
-        $tc
-    done
-
-    echo
-    show_title "Test Results"
-    echo -e "▫️ $(style bright_blue bold) Total Runs:$(style blue) $TEST_RUNS${NC}"
-    if [ $TEST_RUNS -eq 0 ]; then
-        show_warning "No tests were executed."
-        return
-    fi
-    echo -e "▫️ $(style bright_green bold) Passed:$(style green) $TEST_PASSES ($((TEST_PASSES * 100 / TEST_RUNS))%)${NC}"
-    echo -e "▫️ $(style bright_red bold) Failed:$(style red) $TEST_FAILS ($((TEST_FAILS * 100 / TEST_RUNS))%)${NC}"
-}
-
 # NETWORK OPERATIONS
 #==============================================================================
 
@@ -1632,6 +1401,237 @@ run_cmd_capture() {
     declare -gA "$__resultvar"
     eval "$__resultvar[output]=\"\$__output\""
     eval "$__resultvar[status]=\"\$__status\""
+}
+
+# TESTING HELPERS
+#==============================================================================
+
+_testcase_run() {
+    local __outvar="$1"
+    local expected_status="$2"
+    shift 2
+
+    run_cmd_capture result "$@"
+    local cmd_status=${result[status]}
+    local cmd_output=${result[output]}
+
+    local actual_status=$FALSE
+    is_success $cmd_status && actual_status=$TRUE
+    
+    local test_result=$FALSE
+    are_equal_str "$expected_status" "$actual_status" && test_result=$TRUE
+
+    if $debugger_enabled; then
+        echo "--------------------"
+        echo "Method: _unit_test_run"
+        echo "cmd: $@"
+        echo "cmd_status: $cmd_status"
+        echo "expected_status: $expected_status"
+        echo "actual_status: $actual_status"
+        echo "test_result: $test_result"
+        echo "--------------------"
+    fi
+
+    eval "$__outvar=\"\${cmd_output}\""
+    return "$test_result"
+}
+
+_testcase_run_and_match() {
+    local __outvar="$1"
+    local expected_status="$2"
+    local expected_str="$3"
+    shift 3
+
+    local actual_output
+    _testcase_run actual_output "$expected_status" "$@"
+    local test_result="$?"
+    
+    local str_found=$FALSE
+    contains_str "$actual_output" "$expected_str" && str_found=$TRUE
+
+    local test_details=""
+    ! is_success $str_found && test_details="The expected string ($expected_str) was not found"
+
+    local final_test_result=$FALSE
+    is_success $test_result && is_success $str_found && final_test_result=$TRUE
+
+    if $debugger_enabled; then
+        echo "--------------------"
+        echo "Method: _test_run_output_contains"
+        echo "cmd: $@"
+        echo "expected_status: $expected_status"
+        echo "expected_str: $expected_str"
+        echo "test_result: $test_result"
+        echo "str_found: $str_found"
+        echo "final test_result: $final_test_result"
+        echo "--------------------"
+    fi
+
+    eval "$__outvar=\"\${test_details}\""
+    return "$final_test_result"
+}
+
+testcase() {
+    local expected_status="$1"
+    local test_name="$2"
+    local expected_str="${3:-}"
+    shift 3
+
+    local test_result
+    if is_not_empty "$expected_str"; then
+        _testcase_run_and_match test_details "$expected_status" "$expected_str" "$@"
+        test_result=$?
+    else
+        _testcase_run output "$expected_status" "$@"
+        test_result=$?
+        test_details=""
+    fi
+
+    show_test_result "$test_name" "$test_result" "$test_details"
+
+    TEST_RUNS=$((TEST_RUNS + 1))
+    if is_success "$test_result"; then
+        TEST_PASSES=$((TEST_PASSES + 1))
+    else
+        TEST_FAILS=$((TEST_FAILS + 1))
+    fi
+
+    return $test_result
+}
+
+testcase_should_pass() {
+    local test_name="$1"
+    shift
+    testcase $TRUE "$test_name" "" "$@"
+}
+
+testcase_should_fail() {
+    local test_name="$1"
+    shift
+
+    testcase  $FALSE "$test_name" "" "$@"
+}
+
+testcase_should_pass_and_match() {
+    local test_name="$1"
+    local expected_msg="$2"
+    shift 2
+
+    testcase $TRUE "$test_name" "$expected_msg" "$@"
+}
+
+testcase_should_fail_and_match() {
+    local test_name="$1"
+    local expected_msg="$2"
+    shift 2
+
+    testcase $FALSE "$test_name" "$expected_msg" "$@"
+}
+
+# Runs a series of test cases and summarizes results
+# Usage: test_fixture_run <testcase1> <testcase2> ...
+# Parameters:
+#   testcases: Array of test case function names to execute
+test_fixture_run() {
+    local title="${1}"
+    shift
+    TEST_RUNS=0
+    TEST_PASSES=0
+    TEST_FAILS=0
+
+    show_title "$title"
+
+    for tc in "$@"; do
+        $tc
+    done
+
+    echo
+    show_title "Test Results"
+    echo -e "▫️ $(style bright_blue bold) Total Runs:$(style blue) $TEST_RUNS${NC}"
+    if [ $TEST_RUNS -eq 0 ]; then
+        show_warning "No tests were executed."
+        return
+    fi
+    echo -e "▫️ $(style bright_green bold) Passed:$(style green) $TEST_PASSES ($((TEST_PASSES * 100 / TEST_RUNS))%)${NC}"
+    echo -e "▫️ $(style bright_red bold) Failed:$(style red) $TEST_FAILS ($((TEST_FAILS * 100 / TEST_RUNS))%)${NC}"
+}
+
+# VALIDATIONS
+#==============================================================================
+
+validate_cmd() {
+    local description="$1"
+    shift
+    local command="$@"
+    validate_cmd_with_suggestion "$description" "" "$command"
+    return $?
+}
+
+validate_cmd_with_suggestion() {
+    local description="$1"
+    local fix_suggestion="$2"
+    shift 2
+    local command="$@"
+    echo -n "🔍 Validating $description..."
+    if eval "$command" &>/dev/null; then
+        show_success "OK"
+        return 0
+    else
+        show_error "FAIL"
+        if is_not_empty "$fix_suggestion"; then
+            show_suggestion "Suggestion: $fix_suggestion"
+        fi
+        return 1
+    fi
+}
+
+# Validates a single item with a description, validation command, and optional fix suggestion
+# Usage: validate_item "Git installation" "command_exists git" "Install Git using your package manager"
+# Parameters:
+#   description: Description of the item being validated
+#   validation_command: Command to validate the item (should return TRUE/FALSE)
+#   fix_suggestion: Optional suggestion on how to fix the issue if validation fails
+validate_item() {
+    local description="$1"
+    local validation_command="$2"
+    local fix_suggestion="${3:-}"
+    
+    echo -n "🔍 Checking $description..."
+
+    if are_equal_str "$validation_command" "0" || eval "$validation_command" &>/dev/null; then
+        show_success "OK"
+        return 0
+    else
+        show_error "FAIL"
+        if is_not_empty "$fix_suggestion"; then
+            show_suggestion "Fix: $fix_suggestion"
+        fi
+        return 1
+    fi
+}
+
+# Validates multiple dependencies and exits if any are missing
+# Usage: validate_dependencies "git" "curl" "wget"
+# Parameters:
+#   required_dependencies: Array of command names to validate
+validate_dependencies() {
+    local required_dependencies=("$@")
+    local missing_dependencies=()
+    local validation_failed=false
+    show_header "Checking dependencies"
+    for dep in "${required_dependencies[@]}"; do
+        if ! validate_item "$dep" "command_exists $dep" "Install '$dep'"; then
+            missing_dependencies+=("$dep")
+            validation_failed=true
+        fi
+    done
+    if [ "$validation_failed" = true ]; then
+        show_warning "Missing dependencies: ${missing_dependencies[*]}"
+        show_error "The script cannot continue without these dependencies."
+        show_suggestion "Please install them and re-run the script."
+        exit 1
+    fi
+    show_success "All dependencies are installed"
 }
 
 # TEMPORARY DIRECTORY MANAGEMENT
