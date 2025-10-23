@@ -34,7 +34,7 @@ test_fail_with_msg() {
 
 test_user_interactions() {
     # prompt_continue: simulate pressing Enter (no input)
-    test_pass "prompt_continue: waits for Enter" run_autoinput_silent "" prompt_continue
+    test_pass "prompt_continue: waits for Enter" run_autoinput "" prompt_continue
 
     # prompt_question: returns the user's input
     test_pass_with_msg "prompt_question: returns input" "Alice" run_autoinput "Alice" prompt_question "Enter your name"
@@ -43,24 +43,24 @@ test_user_interactions() {
     test_pass_with_msg "prompt_question: enforces char limit" "ABC" run_autoinput "ABCDE" prompt_question "Limited" "" 3
 
     # prompt_yesno: accept 'y' and 'Y' as true
-    test_pass "prompt_yesno: accepts 'y'" run_autoinput_silent "y" prompt_yesno "Continue?"
-    test_pass "prompt_yesno: accepts 'Y'" run_autoinput_silent "Y" prompt_yesno "Continue?"
+    test_pass "prompt_yesno: accepts 'y'" run_autoinput "y" prompt_yesno "Continue?"
+    test_pass "prompt_yesno: accepts 'Y'" run_autoinput "Y" prompt_yesno "Continue?"
 
     # prompt_yesno: accepts 'n' and 'N' as false (validate_item should FAIL)
-    test_fail "prompt_yesno: rejects 'n'" run_autoinput_silent "n" prompt_yesno "Continue?"
-    test_fail "prompt_yesno: rejects 'N'" run_autoinput_silent "N" prompt_yesno "Continue?"
+    test_fail "prompt_yesno: rejects 'n'" run_autoinput "n" prompt_yesno "Continue?"
+    test_fail "prompt_yesno: rejects 'N'" run_autoinput "N" prompt_yesno "Continue?"
 
     # prompt_yesno: pressing Enter defaults to no (validate_item should FAIL)
-    test_fail "prompt_yesno: Enter defaults to no" run_autoinput_silent "" prompt_yesno "Continue?"
+    test_fail "prompt_yesno: Enter defaults to no" run_autoinput "" prompt_yesno "Continue?"
 
     # prompt_proceed: simulate proceed (yes)
-    test_pass "prompt_proceed: proceed on yes" run_autoinput_silent "y" prompt_proceed "This will run."
+    test_pass "prompt_proceed: proceed on yes" run_autoinput "y" prompt_proceed "This will run."
 
     # prompt_proceed: simulate cancel (no) -> validate_item should FAIL
     test_fail_with_msg "prompt_proceed: cancel on no" "Operation cancelled by user." run_autoinput "n" prompt_proceed "This will not run."
 
     # prompt_overwrite: simulate overwrite (yes)
-    test_pass "prompt_overwrite: overwrite on yes" run_autoinput_silent "y" prompt_overwrite "file.txt"
+    test_pass "prompt_overwrite: overwrite on yes" run_autoinput "y" prompt_overwrite "file.txt"
 
     # WITHOUT
     ## prompt_overwrite: do not overwrite on no -> validate_item should FAIL

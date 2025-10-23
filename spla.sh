@@ -1101,8 +1101,9 @@ test_case() {
         _test_case_run_and_check_output test_details "$expected_status" "$expected_str" "$@"
         test_result=$?
     else
-        _test_case_run test_details "$expected_status" "$@"
+        _test_case_run output "$expected_status" "$@"
         test_result=$?
+        test_details=""
     fi
 
     show_test_result "$test_name" "$test_result" "$test_details"
