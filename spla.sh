@@ -1406,6 +1406,16 @@ run_cmd_capture() {
 # TESTING HELPERS
 #==============================================================================
 
+# Runs a test case command and captures output and status
+# Usage: _testcase_run outvar expected_status command arg1 arg2
+# Parameters:
+#   outvar: Name of variable to receive command output
+#   expected_status: Expected exit status (TRUE/FALSE)
+#   command: Command to run
+#   arg1, arg2, ...: Arguments to pass to the command
+# Returns:
+#   Populates outvar with command output
+#   Returns TRUE if command status matches expected_status, FALSE otherwise
 _testcase_run() {
     local __outvar="$1"
     local expected_status="$2"
@@ -1421,21 +1431,20 @@ _testcase_run() {
     local test_result=$FALSE
     are_equal_str "$expected_status" "$actual_status" && test_result=$TRUE
 
-    if $debugger_enabled; then
-        echo "--------------------"
-        echo "Method: _unit_test_run"
-        echo "cmd: $@"
-        echo "cmd_status: $cmd_status"
-        echo "expected_status: $expected_status"
-        echo "actual_status: $actual_status"
-        echo "test_result: $test_result"
-        echo "--------------------"
-    fi
-
     eval "$__outvar=\"\${cmd_output}\""
     return "$test_result"
 }
 
+# Defines and runs a test case with expected status and optional output matching
+# Usage: testcase expected_status "test name" "expected substring" command arg1 arg2
+# Parameters:
+#   expected_status: Expected exit status (TRUE/FALSE)
+#   test_name: Name/description of the test case
+#   expected_str: Optional substring expected to be found in command output
+#   command: Command to run
+#   arg1, arg2, ...: Arguments to pass to the command
+# Returns:
+#   Displays test result and updates test counters
 testcase() {
     local expected_status="$1"
     local test_name="$2"
@@ -1467,18 +1476,23 @@ testcase() {
     return $test_result
 }
 
+# Convenience wrappers for common test case scenarios
+
+# Defines a test case that is expected to pass
 testcase_should_pass() {
     local test_name="$1"
     shift
     testcase $TRUE "$test_name" "" "$@"
 }
 
+# Defines a test case that is expected to fail
 testcase_should_fail() {
     local test_name="$1"
     shift
     testcase  $FALSE "$test_name" "" "$@"
 }
 
+# Defines a test case that is expected to pass and match a given output substring
 testcase_should_pass_and_match() {
     local test_name="$1"
     local expected_msg="$2"
@@ -1486,6 +1500,7 @@ testcase_should_pass_and_match() {
     testcase $TRUE "$test_name" "$expected_msg" "$@"
 }
 
+# Defines a test case that is expected to fail and match a given output substring
 testcase_should_fail_and_match() {
     local test_name="$1"
     local expected_msg="$2"
@@ -1509,12 +1524,17 @@ test_fixtures_run() {
     _testcase_counter_summary
 }
 
+# INTERNAL TEST COUNTERS
+#==============================================================================
+
+# Resets the global test counter
 _testcase_counter_reset(){
     TEST_RUNS=0
     TEST_PASSES=0
     TEST_FAILS=0
 }
 
+# Increases test counters based on test result
 _testcase_counter_increase(){
     local test_result="$1"
     TEST_RUNS=$((TEST_RUNS + 1))
@@ -1525,6 +1545,7 @@ _testcase_counter_increase(){
     fi
 }
 
+# Displays a summary of test case results
 _testcase_counter_summary() {
     show_title "Test Results"
     echo -e "▫️ $(style bright_blue bold) Total Runs:$(style blue) $TEST_RUNS${NC}"
