@@ -19,7 +19,7 @@ _failure=1
 
 # ANSI color codes for terminal output
 # Standard colors (30-37) and bright colors (90-97)
-declare -A color_codes=(
+declare -A _color_codes=(
     ["black"]="30"
     ["red"]="31"
     ["green"]="32"
@@ -39,7 +39,7 @@ declare -A color_codes=(
 )
 
 # ANSI formatting codes for text decoration
-declare -A format_options=(
+declare -A _text_formats=(
     ["bold"]="1"
     ["dim"]="2"
     ["underline"]="4"
@@ -94,11 +94,11 @@ style() {
     # Process all arguments
     for arg in "$@"; do
         # Check if it's a color
-        if is_not_empty "${color_codes[$arg]}"; then
-            codes+=("${color_codes[$arg]}")
+        if is_not_empty "${_color_codes[$arg]}"; then
+            codes+=("${_color_codes[$arg]}")
         # Check if it's a format
-        elif is_not_empty "${format_options[$arg]}"; then
-            codes+=("${format_options[$arg]}")
+        elif is_not_empty "${_text_formats[$arg]}"; then
+            codes+=("${_text_formats[$arg]}")
         fi
     done
     # Join codes with semicolons and create escape sequence
