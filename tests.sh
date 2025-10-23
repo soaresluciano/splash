@@ -191,10 +191,10 @@ test_assertions() {
     testcase_should_fail_and_match "- cstm assert_is_less_than_or_equal" "$custom_err" assert_is_less_than_or_equal 1 0 "$custom_err"
 }
 
-fixture=(
+fixtures=(
     test_user_interactions
     test_comparisons
     test_assertions
 )
 
-test_fixture_run "Unit Tests" "${fixture[@]}"
+test_fixtures_run "Unit Tests" "${fixtures[@]}"

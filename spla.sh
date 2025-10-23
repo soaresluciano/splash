@@ -1477,24 +1477,27 @@ testcase() {
     local expected_str="${3:-}"
     shift 3
 
-    local test_result
+    _testcase_run actual_output "$expected_status" "$@"
+    local testrun_result=$?
+
+    local test_details final_test_result
+
     if is_not_empty "$expected_str"; then
-        _testcase_run_and_match test_details "$expected_status" "$expected_str" "$@"
-        test_result=$?
+        local str_found=$FALSE
+        contains_str "$actual_output" "$expected_str" && str_found=$TRUE
+
+        test_details=""
+        ! is_success $str_found && test_details="The expected string ($expected_str) was not found"
+
+        final_test_result=$FALSE
+        is_success $testrun_result && is_success $str_found && final_test_result=$TRUE
     else
-        _testcase_run output "$expected_status" "$@"
-        test_result=$?
+        final_test_result=$testrun_result
         test_details=""
     fi
 
-    show_test_result "$test_name" "$test_result" "$test_details"
-
-    TEST_RUNS=$((TEST_RUNS + 1))
-    if is_success "$test_result"; then
-        TEST_PASSES=$((TEST_PASSES + 1))
-    else
-        TEST_FAILS=$((TEST_FAILS + 1))
-    fi
+    show_test_result "$test_name" "$final_test_result" "$test_details"
+    _testcase_counter_increase "$final_test_result"
 
     return $test_result
 }
@@ -1529,23 +1532,40 @@ testcase_should_fail_and_match() {
 }
 
 # Runs a series of test cases and summarizes results
-# Usage: test_fixture_run <testcase1> <testcase2> ...
+# Usage: test_fixtures_run <fixture1> <fixture2> ...
 # Parameters:
-#   testcases: Array of test case function names to execute
-test_fixture_run() {
+#   fixtures: Array of fixture function names to execute
+test_fixtures_run() {
     local title="${1}"
     shift
-    TEST_RUNS=0
-    TEST_PASSES=0
-    TEST_FAILS=0
-
+    _testcase_counter_reset
     show_title "$title"
 
-    for tc in "$@"; do
-        $tc
+    for fixture in "$@"; do
+        $fixture
     done
 
     echo
+    _testcase_counter_summary
+}
+
+_testcase_counter_reset(){
+    TEST_RUNS=0
+    TEST_PASSES=0
+    TEST_FAILS=0
+}
+
+_testcase_counter_increase(){
+    local test_result="$1"
+    TEST_RUNS=$((TEST_RUNS + 1))
+    if is_success "$test_result"; then
+        TEST_PASSES=$((TEST_PASSES + 1))
+    else
+        TEST_FAILS=$((TEST_FAILS + 1))
+    fi
+}
+
+_testcase_counter_summary() {
     show_title "Test Results"
     echo -e "▫️ $(style bright_blue bold) Total Runs:$(style blue) $TEST_RUNS${NC}"
     if [ $TEST_RUNS -eq 0 ]; then
