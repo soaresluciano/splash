@@ -1539,55 +1539,34 @@ _testcase_counter_summary() {
 # VALIDATIONS
 #==============================================================================
 
+# Validates a single command
+# Usage: validate_cmd "Description" command arg1 arg2
+# Parameters:
+#   description: Description of the command being validated
+#   command: Command to run for validation
+#   arg1, arg2, ...: Arguments to pass to the command
 validate_cmd() {
     local description="$1"
     shift
-    local command="$@"
-    validate_cmd_with_suggestion "$description" "" "$command"
+    validate_cmd_show_suggestion "$description" "" "$@"
     return $?
 }
 
-validate_cmd_with_suggestion() {
+# Validates a single command with a fix suggestion on failure
+# Usage: validate_cmd_show_suggestion "Description" "Fix suggestion" command arg1 arg2
+# Parameters:
+#   description: Description of the command being validated
+#   fix_suggestion: Suggestion message to show if validation fails
+#   command: Command to run for validation
+#   arg1, arg2, ...: Arguments to pass to the command
+validate_cmd_show_suggestion() {
     local description="$1"
     local fix_suggestion="$2"
     shift 2
-    local command="$@"
-    echo -n "🔍 Validating $description..."
-    if eval "$command" &>/dev/null; then
-        show_success "OK"
-        return 0
-    else
-        show_error "FAIL"
-        if is_not_empty "$fix_suggestion"; then
-            show_suggestion "Suggestion: $fix_suggestion"
-        fi
-        return 1
-    fi
-}
-
-# Validates a single item with a description, validation command, and optional fix suggestion
-# Usage: validate_item "Git installation" "command_exists git" "Install Git using your package manager"
-# Parameters:
-#   description: Description of the item being validated
-#   validation_command: Command to validate the item (should return TRUE/FALSE)
-#   fix_suggestion: Optional suggestion on how to fix the issue if validation fails
-validate_item() {
-    local description="$1"
-    local validation_command="$2"
-    local fix_suggestion="${3:-}"
-    
-    echo -n "🔍 Checking $description..."
-
-    if are_equal_str "$validation_command" "0" || eval "$validation_command" &>/dev/null; then
-        show_success "OK"
-        return 0
-    else
-        show_error "FAIL"
-        if is_not_empty "$fix_suggestion"; then
-            show_suggestion "Fix: $fix_suggestion"
-        fi
-        return 1
-    fi
+    _testcase_run actual_output "$TRUE" "$@"
+    local testrun_result=$?
+    show_test_result "Validation: $description" "$testrun_result" "" "$fix_suggestion"
+    return $testrun_result
 }
 
 # Validates multiple dependencies and exits if any are missing
@@ -1600,7 +1579,7 @@ validate_dependencies() {
     local validation_failed=false
     show_header "Checking dependencies"
     for dep in "${required_dependencies[@]}"; do
-        if ! validate_item "$dep" "command_exists $dep" "Install '$dep'"; then
+        if ! validate_cmd "$dep" command_exists "$dep"; then
             missing_dependencies+=("$dep")
             validation_failed=true
         fi
