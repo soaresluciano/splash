@@ -1436,41 +1436,6 @@ _testcase_run() {
     return "$test_result"
 }
 
-_testcase_run_and_match() {
-    local __outvar="$1"
-    local expected_status="$2"
-    local expected_str="$3"
-    shift 3
-
-    local actual_output
-    _testcase_run actual_output "$expected_status" "$@"
-    local test_result="$?"
-    
-    local str_found=$FALSE
-    contains_str "$actual_output" "$expected_str" && str_found=$TRUE
-
-    local test_details=""
-    ! is_success $str_found && test_details="The expected string ($expected_str) was not found"
-
-    local final_test_result=$FALSE
-    is_success $test_result && is_success $str_found && final_test_result=$TRUE
-
-    if $debugger_enabled; then
-        echo "--------------------"
-        echo "Method: _test_run_output_contains"
-        echo "cmd: $@"
-        echo "expected_status: $expected_status"
-        echo "expected_str: $expected_str"
-        echo "test_result: $test_result"
-        echo "str_found: $str_found"
-        echo "final test_result: $final_test_result"
-        echo "--------------------"
-    fi
-
-    eval "$__outvar=\"\${test_details}\""
-    return "$final_test_result"
-}
-
 testcase() {
     local expected_status="$1"
     local test_name="$2"
@@ -1511,7 +1476,6 @@ testcase_should_pass() {
 testcase_should_fail() {
     local test_name="$1"
     shift
-
     testcase  $FALSE "$test_name" "" "$@"
 }
 
@@ -1519,7 +1483,6 @@ testcase_should_pass_and_match() {
     local test_name="$1"
     local expected_msg="$2"
     shift 2
-
     testcase $TRUE "$test_name" "$expected_msg" "$@"
 }
 
@@ -1527,7 +1490,6 @@ testcase_should_fail_and_match() {
     local test_name="$1"
     local expected_msg="$2"
     shift 2
-
     testcase $FALSE "$test_name" "$expected_msg" "$@"
 }
 
@@ -1540,11 +1502,9 @@ test_fixtures_run() {
     shift
     _testcase_counter_reset
     show_title "$title"
-
     for fixture in "$@"; do
         $fixture
     done
-
     echo
     _testcase_counter_summary
 }
