@@ -832,7 +832,7 @@ sudoing () {
 # Returns success if command exists, failure if it doesn't
 # Usage: if command_exists "git"; then ... fi
 command_exists() {
-    echo "$(run_silent command -v "$1")"
+    return "$(run_silent command -v "$1")"
 }
 
 # Sources a file if it exists
@@ -1580,7 +1580,7 @@ validate_cmd_show_suggestion() {
     shift 2
     _testcase_run actual_output "$_success" "$@"
     local testrun_result=$?
-    show_test_result "Validation: $description" "$testrun_result" "" "$fix_suggestion"
+    show_test_result "Validating $description" "$testrun_result" "" "$fix_suggestion"
     return $testrun_result
 }
 
@@ -1592,7 +1592,6 @@ validate_dependencies() {
     local required_dependencies=("$@")
     local missing_dependencies=()
     local validation_failed=_failure
-    show_header "Checking dependencies"
     for dep in "${required_dependencies[@]}"; do
         if ! validate_cmd "$dep" command_exists "$dep"; then
             missing_dependencies+=("$dep")

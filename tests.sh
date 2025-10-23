@@ -44,46 +44,21 @@ test_user_interactions() {
 # test_file_operations() {
 # }
 
-# test_validations() {
-#     success_msg="OK"
-#     error_msg="FAIL"
-#     suggestion_msg="Fix: Suggestion!"
-#     # Helper: run a validation test and show result. It accepts the
-#     # positional arguments to be forwarded to validate_item (preserving
-#     # separate arguments rather than building a single string).
-#     run_validate_item_test() {
-#         local assert_fn="$1"; shift
-#         local expected_msg="$1"; shift
-#         local test_name="$1"; shift
-#         # Remaining args (if any) are passed to validate_item
-#         if $assert_fn "$expected_msg" validate_item "$test_name" "$@"; then
-#             show_success "$test_name: PASS"
-#         else
-#             show_error "$test_name: FAIL"
-#         fi
-#     }
+test_validations() {
+    # validate_cmd
+    testcase_should_pass_and_match "validate_cmd: has the correct title" "Validating title" validate_cmd "title" exit $_success
+    testcase_should_pass_and_match "validate_cmd: Shows the correct result" "OK" validate_cmd "success" exit $_success
+    testcase_should_fail_and_match "validate_cmd: Shows the correct failure message" "FAIL" validate_cmd "failure" exit $_failure
 
-#     # Basic cases
-#     local description="Shows description"
-#     run_validate_item_test assert_passes_with "Checking $description..." "$description" "0"
-#     run_validate_item_test assert_passes_with "$success_msg" "Receives 0" "0"
-#     run_validate_item_test assert_fails_with  "$error_msg"   "Receives garbage" "garbage"
+    # validate_cmd_show_suggestion
+    #testcase_should_pass_and_not_match "validate_cmd_show_suggestion: Not Shows the suggestion on success" "SUGGESTION" validate_cmd_show_suggestion "success" "SUGGESTION" exit $_success
+    testcase_should_fail_and_match "validate_cmd_show_suggestion: Shows the suggestion on fail" "SUGGESTION" validate_cmd_show_suggestion "failure" "SUGGESTION" exit $_failure
 
-#     # Command-like check expressions
-#     run_validate_item_test assert_passes_with "$success_msg" "Receives TRUE" "[ -z '' ]"
-#     run_validate_item_test assert_fails_with  "$error_msg"   "Receives FALSE" "[ -z 'data' ]"
-
-#     # Fix suggestion behavior
-#     run_validate_item_test assert_fails_with  "$suggestion_msg" "Show fix suggestion on failure (fix printed)" "[ -z 'data' ]" "Suggestion!"
-#     run_validate_item_test assert_fails_without "$suggestion_msg" "Do not show fix suggestion on failure (fix not printed)" "[ -z 'data' ]"
-
-#     # Extra edge case: empty string as value (should be treated as blank/OK)
-#     run_validate_item_test assert_passes_with "$success_msg" "Receives empty string" ""
-
-# }
-
-# test_network_operations() {
-# }
+    # validate_dependencies
+    testcase_should_pass_and_match "validate_dependencies: all exists" "All dependencies are installed" validate_dependencies "ls" "cd"
+    testcase_should_fail_and_match "validate_dependencies: 1 missing dependency" "Missing dependencies: bad_dep" validate_dependencies "ls" "bad_dep"
+    testcase_should_fail_and_match "validate_dependencies: 1+ missing dependency" "Missing dependencies: bad_dep1 bad_dep2" validate_dependencies "bad_dep1" "bad_dep2"
+}
 
 test_comparisons() {
     # is_not_empty
@@ -187,6 +162,7 @@ fixtures=(
     test_user_interactions
     test_comparisons
     test_assertions
+    test_validations
 )
 
 test_fixtures_run "Unit Tests" "${fixtures[@]}"
