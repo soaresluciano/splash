@@ -1521,32 +1521,34 @@ test_fixtures_run() {
 
 # Resets the global test counter
 _testcase_counter_reset(){
-    TEST_RUNS=0
-    TEST_PASSES=0
-    TEST_FAILS=0
+    _testcase_counter_total_runs=0
+    _testcase_counter_total_passed=0
+    _testcase_counter_total_failed=0
 }
 
 # Increases test counters based on test result
 _testcase_counter_increase(){
     local test_result="$1"
-    TEST_RUNS=$((TEST_RUNS + 1))
+    _testcase_counter_total_runs=$((_testcase_counter_total_runs + 1))
     if is_success "$test_result"; then
-        TEST_PASSES=$((TEST_PASSES + 1))
+        _testcase_counter_total_passed=$((_testcase_counter_total_passed + 1))
     else
-        TEST_FAILS=$((TEST_FAILS + 1))
+        _testcase_counter_total_failed=$((_testcase_counter_total_failed + 1))
     fi
 }
 
 # Displays a summary of test case results
 _testcase_counter_summary() {
     show_title "Test Results"
-    echo -e "▫️ $(style bright_blue bold) Total Runs:$(style blue) $TEST_RUNS${_nc}"
-    if [ $TEST_RUNS -eq 0 ]; then
+    echo -e "▫️ $(style bright_blue bold) Total Runs:$(style blue) $_testcase_counter_total_runs${_nc}"
+    if [ $_testcase_counter_total_runs -eq 0 ]; then
         show_warning "No tests were executed."
         return
     fi
-    echo -e "▫️ $(style bright_green bold) Passed:$(style green) $TEST_PASSES ($((TEST_PASSES * 100 / TEST_RUNS))%)${_nc}"
-    echo -e "▫️ $(style bright_red bold) Failed:$(style red) $TEST_FAILS ($((TEST_FAILS * 100 / TEST_RUNS))%)${_nc}"
+    local pass_percentage=$((_testcase_counter_total_passed * 100 / _testcase_counter_total_runs))
+    local fail_percentage=$((_testcase_counter_total_failed * 100 / _testcase_counter_total_runs))
+    echo -e "▫️ $(style bright_green bold) Passed:$(style green) $_testcase_counter_total_passed ($pass_percentage%)${_nc}"
+    echo -e "▫️ $(style bright_red bold) Failed:$(style red) $_testcase_counter_total_failed ($fail_percentage%)${_nc}"
 }
 
 # VALIDATIONS
