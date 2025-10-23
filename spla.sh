@@ -48,7 +48,7 @@ declare -A _text_formats=(
 )
 
 # ANSI reset code to clear all formatting
-NC='\033[0m'
+_nc='\033[0m'
 
 # UTILS
 #==============================================================================
@@ -83,9 +83,9 @@ get_current_user() {
 #   bold, dim, underline, blink, reverse
 # 
 # Examples:
-#   echo -e "$(style red)This is red text${NC}"
-#   echo -e "$(style bold blue)This is bold blue text${NC}"
-#   echo -e "$(style underline bright_red)This is underlined bright red text${NC}"
+#   echo -e "$(style red)This is red text${_nc}"
+#   echo -e "$(style bold blue)This is bold blue text${_nc}"
+#   echo -e "$(style underline bright_red)This is underlined bright red text${_nc}"
 #
 # Returns: ANSI escape sequence string (e.g., "\033[1;31m" for bold red)
 style() {
@@ -109,7 +109,7 @@ style() {
 }
 
 # Convenience function to apply styling and output text in one call
-# Automatically handles the reset code, so no need to add ${NC}
+# Automatically handles the reset code, so no need to add ${_nc}
 # 
 # Usage: styled [color] [format1] [format2] ... "text to display"
 # 
@@ -122,7 +122,7 @@ style() {
 styled() {
     local text="${@: -1}"  # Last argument is the text
     local style_args=("${@:1:$#-1}")  # All but last argument are style parameters
-    echo -e "$(style "${style_args[@]}")${text}${NC}"
+    echo -e "$(style "${style_args[@]}")${text}${_nc}"
 }
 
 # UI MESSAGES
@@ -181,7 +181,7 @@ show_suggestion () {
 show_keyvalue () {
     local key="$1"
     local value="$2"
-    echo -e "▫️ $(style cyan) $key${NC}: $value"
+    echo -e "▫️ $(style cyan) $key${_nc}: $value"
 }
 
 # Shows a question with optional answer options
@@ -319,7 +319,7 @@ prompt_menu() {
         local menu_line=""
         local i=1
         for option in "${options[@]}"; do
-            menu_line+="$(style bright_black)[${NC}$(style cyan) $i${NC}: $option $(style bright_black)]${NC}  "
+            menu_line+="$(style bright_black)[${_nc}$(style cyan) $i${_nc}: $option $(style bright_black)]${_nc}  "
             ((i++))
         done
         echo -e "   $menu_line" >&2
@@ -1540,13 +1540,13 @@ _testcase_counter_increase(){
 # Displays a summary of test case results
 _testcase_counter_summary() {
     show_title "Test Results"
-    echo -e "▫️ $(style bright_blue bold) Total Runs:$(style blue) $TEST_RUNS${NC}"
+    echo -e "▫️ $(style bright_blue bold) Total Runs:$(style blue) $TEST_RUNS${_nc}"
     if [ $TEST_RUNS -eq 0 ]; then
         show_warning "No tests were executed."
         return
     fi
-    echo -e "▫️ $(style bright_green bold) Passed:$(style green) $TEST_PASSES ($((TEST_PASSES * 100 / TEST_RUNS))%)${NC}"
-    echo -e "▫️ $(style bright_red bold) Failed:$(style red) $TEST_FAILS ($((TEST_FAILS * 100 / TEST_RUNS))%)${NC}"
+    echo -e "▫️ $(style bright_green bold) Passed:$(style green) $TEST_PASSES ($((TEST_PASSES * 100 / TEST_RUNS))%)${_nc}"
+    echo -e "▫️ $(style bright_red bold) Failed:$(style red) $TEST_FAILS ($((TEST_FAILS * 100 / TEST_RUNS))%)${_nc}"
 }
 
 # VALIDATIONS
