@@ -1612,7 +1612,7 @@ validate_dependencies() {
 #==============================================================================
 
 # Global temporary directory variable
-_GLOBAL_TEMP_DIR=""
+_global_temp_dir=""
 
 # Gets or creates the global temporary directory
 # Creates the directory on first call, returns existing path on subsequent calls
@@ -1624,18 +1624,18 @@ _GLOBAL_TEMP_DIR=""
 #   mkdir -p "$temp_dir/subdir"
 #   echo "data" > "$temp_dir/file.txt"
 temp_dir_get() {
-    if is_empty "$_GLOBAL_TEMP_DIR" || ! dir_exists "$_GLOBAL_TEMP_DIR" --no-log; then
+    if is_empty "$_global_temp_dir" || ! dir_exists "$_global_temp_dir" --no-log; then
         trap '_cleanup_temp_dir' EXIT
-        _GLOBAL_TEMP_DIR=$(mktemp -d)
+        _global_temp_dir=$(mktemp -d)
     fi
-    echo "$_GLOBAL_TEMP_DIR"
+    echo "$_global_temp_dir"
 }
 
 # Internal cleanup function for the global temporary directory
 _cleanup_temp_dir() {
-    if is_not_empty "$_GLOBAL_TEMP_DIR" && dir_exists "$_GLOBAL_TEMP_DIR" --no-log; then
-        dir_delete_recursive "$_GLOBAL_TEMP_DIR"
-        _GLOBAL_TEMP_DIR=""
+    if is_not_empty "$_global_temp_dir" && dir_exists "$_global_temp_dir" --no-log; then
+        dir_delete_recursive "$_global_temp_dir"
+        _global_temp_dir=""
     fi
 }
 
