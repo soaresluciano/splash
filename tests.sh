@@ -1,30 +1,85 @@
 #!/bin/bash
 source ./spla.sh
 
-# UI MESSAGES TESTS
-# show_title
-# show_header
-# show_error
-# show_warning
-# show_success
-# show_info
-# show_log
-# show_suggestion
-# show_keyvalue
-# show_question (no options)
-# show_question (with options)
-# show_test_result (description, result = true)
-# show_test_result (description, result = true) with details
-# show_test_result (description, result = true) with suggestion
-# show_test_result (description, result = true) with suggestion and details
-# show_test_result (description, result = false)
-# show_test_result (description, result = false) with details
-# show_test_result (description, result = false) with suggestion
-# show_test_result (description, result = false) with suggestion and details
-# banner_attention (default)
-# banner_attention (custom message)
-# banner_completed (default)
-# banner_completed (custom message)
+test_ui_messages() {
+    local token="ABCD1234"
+
+    # show_title
+    testcase_should_pass_and_match "show_title" "$token" show_title "$token"
+
+    # show_header
+    testcase_should_pass_and_match "show_header" "$token" show_header "$token"
+
+    # show_error
+    testcase_should_pass_and_match "show_error" "$token" show_error "$token"
+
+    # show_warning
+    testcase_should_pass_and_match "show_warning" "$token" show_warning "$token"
+
+    # show_success
+    testcase_should_pass_and_match "show_success" "$token" show_success "$token"
+
+    # show_info
+    testcase_should_pass_and_match "show_info" "$token" show_info "$token"
+
+    # show_log
+    testcase_should_pass_and_match "show_log" "$token" show_log "$token"
+
+    # show_suggestion
+    testcase_should_pass_and_match "show_suggestion" "$token" show_suggestion "$token"
+
+    # show_keyvalue
+    #testcase_should_pass_and_match "show_keyvalue" "Key: Value" show_keyvalue "Key" "Value"
+
+    # show_question (no options)
+    testcase_should_pass_and_match "show_question (no options)" "$token" show_question "$token"
+
+    # show_question (with options)
+    testcase_should_pass_and_match "show_question (with options)" "1/2/3" show_question "$token" "1/2/3"
+
+    # show_test_result (result = true, description)
+    # TODO: use regex to match both details and suggestion in any order
+    testcase_should_pass_and_match "show_test_result (result = true)" "OK" show_test_result "description" "$_success"
+    testcase_should_pass_and_match "show_test_result (result = true, description)" "DESCRIPTION" show_test_result "DESCRIPTION" "$_success"
+
+    # show_test_result (result=true, details)
+    testcase_should_pass_and_match "show_test_result (result=true, details)" "DETAILS" show_test_result "description" "$_success" "DETAILS"
+
+    # show_test_result (result= true, with suggestion)
+    #testcase_should_pass_and_not_match "show_test_result (result=true, with suggestion)" "SUGGESTION" show_test_result "description" "$_success" "" "SUGGESTION"
+
+    # show_test_result (result=true, with suggestion and details)
+    testcase_should_pass_and_match "show_test_result (result=true, with suggestion and details)1" "DETAILS" show_test_result "description" "$_success" "DETAILS" "SUGGESTION"
+    #testcase_should_pass_and_not_match "show_test_result (result=true, with suggestion and details)2" "SUGGESTION" show_test_result "description" "$_success" "DETAILS" "SUGGESTION"
+
+    # show_test_result (description, result = false)
+    # TODO: use regex to match both details and suggestion in any order
+    testcase_should_fail_and_match "show_test_result (result=false)" "FAIL" show_test_result "description" "$_failure"
+    #testcase_should_fail_and_match "show_test_result (result=false)" "DESCRIPTION" show_test_result "DESCRIPTION" "$_failure"
+
+    # show_test_result (result = false, details)
+    testcase_should_fail_and_match "show_test_result (result=false, details)" "DETAILS" show_test_result "description" "$_failure" "DETAILS"
+
+    # show_test_result (result = false, suggestion)
+    testcase_should_fail_and_match "show_test_result (result=false, with suggestion)" "SUGGESTION" show_test_result "description" "$_failure" "" "SUGGESTION"
+
+    # show_test_result (result = false,suggestion and details)
+    # TODO: use regex to match both details and suggestion in any order
+    testcase_should_fail_and_match "show_test_result (result=false, with suggestion and details)" "DETAILS" show_test_result "description" "$_failure" "DETAILS" "SUGGESTION"
+    testcase_should_fail_and_match "show_test_result (result=false, with suggestion and details)" "SUGGESTION" show_test_result "description" "$_failure" "DETAILS" "SUGGESTION"
+
+    # banner_attention (default)
+    testcase_should_pass_and_match "banner_attention (default)" "ATTENTION" banner_attention
+
+    # banner_attention (custom message)
+    testcase_should_pass_and_match "banner_attention (custom message)" "$token" banner_attention "$token"
+
+    # banner_completed (default)
+    testcase_should_pass_and_match "banner_completed (default)" "COMPLETED" banner_completed
+
+    # banner_completed (custom message)
+    testcase_should_pass_and_match "banner_completed (custom message)" "$token" banner_completed "$token"
+}
 
 test_user_interactions() {
     # prompt_continue: simulate pressing Enter (no input)
@@ -199,6 +254,7 @@ test_assertions() {
 }
 
 fixtures=(
+    test_ui_messages
     test_user_interactions
     test_comparisons
     test_assertions
