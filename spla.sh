@@ -1025,7 +1025,7 @@ validate_dependencies() {
 # TESTING HELPERS
 #==============================================================================
 
-_test_case_run() {
+_testcase_run() {
     local __outvar="$1"
     local expected_status="$2"
     shift 2
@@ -1055,14 +1055,14 @@ _test_case_run() {
     return "$test_result"
 }
 
-_test_case_run_and_check_output() {
+_testcase_run_and_match() {
     local __outvar="$1"
     local expected_status="$2"
     local expected_str="$3"
     shift 3
 
     local actual_output
-    _test_case_run actual_output "$expected_status" "$@"
+    _testcase_run actual_output "$expected_status" "$@"
     local test_result="$?"
     
     local str_found=$FALSE
@@ -1090,7 +1090,7 @@ _test_case_run_and_check_output() {
     return "$final_test_result"
 }
 
-test_case() {
+testcase() {
     local expected_status="$1"
     local test_name="$2"
     local expected_str="${3:-}"
@@ -1098,10 +1098,10 @@ test_case() {
 
     local test_result
     if is_not_empty "$expected_str"; then
-        _test_case_run_and_check_output test_details "$expected_status" "$expected_str" "$@"
+        _testcase_run_and_match test_details "$expected_status" "$expected_str" "$@"
         test_result=$?
     else
-        _test_case_run output "$expected_status" "$@"
+        _testcase_run output "$expected_status" "$@"
         test_result=$?
         test_details=""
     fi
@@ -1118,19 +1118,50 @@ test_case() {
     return $test_result
 }
 
+testcase_should_pass() {
+    local test_name="$1"
+    shift
+    testcase $TRUE "$test_name" "" "$@"
+}
+
+testcase_should_fail() {
+    local test_name="$1"
+    shift
+
+    testcase  $FALSE "$test_name" "" "$@"
+}
+
+testcase_should_pass_and_match() {
+    local test_name="$1"
+    local expected_msg="$2"
+    shift 2
+
+    testcase $TRUE "$test_name" "$expected_msg" "$@"
+}
+
+testcase_should_fail_and_match() {
+    local test_name="$1"
+    local expected_msg="$2"
+    shift 2
+
+    testcase $FALSE "$test_name" "$expected_msg" "$@"
+}
+
 # Runs a series of test cases and summarizes results
 # Usage: test_fixture_run <testcase1> <testcase2> ...
 # Parameters:
 #   testcases: Array of test case function names to execute
 test_fixture_run() {
+    local title="${1}"
+    shift
     TEST_RUNS=0
     TEST_PASSES=0
     TEST_FAILS=0
 
-    show_title "Unit Tests"
+    show_title "$title"
 
-    for testcase in "$@"; do
-        $testcase
+    for tc in "$@"; do
+        $tc
     done
 
     echo

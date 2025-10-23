@@ -26,3 +26,5 @@ redirects
 is_num
 
 replace icons by ascii
+
+extract match logic from  _testcase_run_and_match and use on testcase 
