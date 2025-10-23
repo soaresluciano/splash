@@ -132,15 +132,15 @@ test_comparisons() {
     testcase_should_fail "is_integer: not a number (should fail)" is_integer 'data'
 
     # is_failure
-    testcase_should_pass "is_failure: failure" is_failure $failure
+    testcase_should_pass "is_failure: failure" is_failure $_failure
     testcase_should_pass "is_failure: 1 string" is_failure "1"
-    testcase_should_fail "is_failure: success (should fail)" is_failure $success
+    testcase_should_fail "is_failure: success (should fail)" is_failure $_success
     testcase_should_fail "is_failure: 0 string (should fail)" is_failure "0"
 
     # is_success
-    testcase_should_pass "is_success: success" is_success $success
+    testcase_should_pass "is_success: success" is_success $_success
     testcase_should_pass "is_success: 0 string" is_success "0"
-    testcase_should_fail "is_success: failure (should fail)" is_success $failure
+    testcase_should_fail "is_success: _failure (should fail)" is_success $_failure
     testcase_should_fail "is_success: 1 string (should fail)" is_success "1"
 
     # contains_str
