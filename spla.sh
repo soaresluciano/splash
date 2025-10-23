@@ -19,7 +19,7 @@ failure=1
 
 # ANSI color codes for terminal output
 # Standard colors (30-37) and bright colors (90-97)
-declare -A COLORS=(
+declare -A color_codes=(
     ["black"]="30"
     ["red"]="31"
     ["green"]="32"
@@ -39,7 +39,7 @@ declare -A COLORS=(
 )
 
 # ANSI formatting codes for text decoration
-declare -A FORMATS=(
+declare -A format_options=(
     ["bold"]="1"
     ["dim"]="2"
     ["underline"]="4"
@@ -94,11 +94,11 @@ style() {
     # Process all arguments
     for arg in "$@"; do
         # Check if it's a color
-        if is_not_empty "${COLORS[$arg]}"; then
-            codes+=("${COLORS[$arg]}")
+        if is_not_empty "${color_codes[$arg]}"; then
+            codes+=("${color_codes[$arg]}")
         # Check if it's a format
-        elif is_not_empty "${FORMATS[$arg]}"; then
-            codes+=("${FORMATS[$arg]}")
+        elif is_not_empty "${format_options[$arg]}"; then
+            codes+=("${format_options[$arg]}")
         fi
     done
     # Join codes with semicolons and create escape sequence
@@ -326,7 +326,7 @@ prompt_menu() {
     }
     # Capture user input
     local choice
-    while success; do
+    while true; do
         read -p "> " -n1 choice
         echo >&2  # move to new line after single character input
         if [[ "$choice" =~ ^[1-9][0-9]*$ ]] && (( choice >= 1 && choice <= i - 1 )); then
