@@ -16,6 +16,7 @@ test_regex() {
     test_status_is "$_success" "regex_build_first_only pass" regex_match "$main_str" "$(regex_build_first_only "quick" "dog")"
     test_status_is "$_failure" "regex_build_first_only fail 1" regex_match "$main_str" "$(regex_build_first_only "quick" "fox")"
     test_status_is "$_failure" "regex_build_first_only fail 2" regex_match "$main_str" "$(regex_build_first_only "dog" "cat")"
+    test_status_is "$_failure" "regex_build_first_only fail 3" regex_match "$main_str" "$(regex_build_first_only "dog" "fox")"
 
     # regex_build_all
     test_status_is "$_success" "regex_build_all pass" regex_match "$main_str" "$(regex_build_all "quick" "fox")"
@@ -78,8 +79,7 @@ test_ui_messages() {
     test_status_output_match "$_success" "$(regex_build_not "SUGGESTION")" "show_test_result (result=true, with suggestion)" show_test_result "description" "$_success" "" "SUGGESTION"
 
     # show_test_result (result=true, with suggestion and details)
-    test_status_output_match "$_success" "DETAILS" "show_test_result (result=true, with suggestion and details)1" show_test_result "description" "$_success" "DETAILS" "SUGGESTION"
-    test_status_output_match "$_success" "$(regex_build_not "SUGGESTION")" "show_test_result (result=true, with suggestion and details)2" show_test_result "description" "$_success" "DETAILS" "SUGGESTION"
+    test_status_output_match "$_success" "$(regex_build_first_only "DETAILS" "SUGGESTION")" "show_test_result (result=true, with suggestion and details)2" show_test_result "description" "$_success" "DETAILS" "SUGGESTION"
 
     # show_test_result (description, result = false)
     test_status_output_match "$_failure" "$(regex_build_all "DESCRIPTION" "FAIL")" "show_test_result (result=false)" show_test_result "DESCRIPTION" "$_failure"
@@ -107,44 +107,32 @@ test_ui_messages() {
 }
 
 test_user_interactions() {
-    # prompt_continue: simulate pressing Enter (no input)
+    # prompt_continue:
     test_status_is "$_success" "prompt_continue: waits for Enter" run_autoinput "" prompt_continue
 
-    # prompt_question: returns the user's input
+    # prompt_question
     test_status_output_match "$_success" "$_target" "prompt_question: returns input" run_autoinput "$_target" prompt_question "Enter your name"
-
-    # prompt_question: character limit enforcement (limit=3)
     test_status_output_match "$_success" "ABC" "prompt_question: enforces char limit" run_autoinput "ABCDE" prompt_question "Limited" "" 3
 
-    # prompt_yesno: accept 'y' and 'Y' as true
+    # prompt_yesno
     test_status_is "$_success" "prompt_yesno: accepts 'y'" run_autoinput "y" prompt_yesno "Continue?"
     test_status_is "$_success" "prompt_yesno: accepts 'Y'" run_autoinput "Y" prompt_yesno "Continue?"
-
-    # prompt_yesno: accepts 'n' and 'N' as false (validate_item should FAIL)
     test_status_is "$_failure" "prompt_yesno: rejects 'n'" run_autoinput "n" prompt_yesno "Continue?"
     test_status_is "$_failure" "prompt_yesno: rejects 'N'" run_autoinput "N" prompt_yesno "Continue?"
-
-    # prompt_yesno: pressing Enter defaults to no (validate_item should FAIL)
     test_status_is "$_failure" "prompt_yesno: Enter defaults to no" run_autoinput "" prompt_yesno "Continue?"
 
-    # prompt_proceed: simulate proceed (yes)
+    # prompt_proceed
     test_status_is "$_success" "prompt_proceed: proceed on yes" run_autoinput "y" prompt_proceed "This will run."
-
-    # prompt_proceed: simulate cancel (no) -> validate_item should FAIL
     test_status_output_match "$_failure" "Operation cancelled by user." "prompt_proceed: cancel on no" run_autoinput "n" prompt_proceed "This will not run."
-
-    # prompt_overwrite: simulate overwrite (yes)
     test_status_is "$_success" "prompt_overwrite: overwrite on yes" run_autoinput "y" prompt_overwrite "file.txt"
 
-    # WITHOUT
-    ## prompt_overwrite: do not overwrite on no -> validate_item should FAIL
+    # prompt_overwrite
     test_status_output_match "$_failure" "Using existing 'RESOURCE'" "prompt_overwrite: keep existing on no" run_autoinput "n" prompt_overwrite "RESOURCE"
-}
+    #TODO: add more tests for prompt_overwrite
 
-# test_menu() {
-#     options=("Option 1" "Option 2" "Option 3" "Quit")
-#     selected_option=$(menu "Please choose an option:" "${options[@]}")
-# }
+    # prompt_menu 
+    # todo: implement tests for prompt_menu
+}
 
 test_validations() {
     # validate_cmd
@@ -153,8 +141,8 @@ test_validations() {
     test_status_output_match "$_failure" "FAIL" "validate_cmd: Shows the correct failure message" validate_cmd "failure" exit $_failure
 
     # validate_cmd_show_suggestion
-    test_status_output_match "$_success" "$(regex_build_not "SUGGESTION")" "validate_cmd_show_suggestion: Not Shows the suggestion on success" validate_cmd_show_suggestion "success" "SUGGESTION" exit $_success
-    test_status_output_match "$_failure" "$_target" "validate_cmd_show_suggestion: Shows the suggestion on fail" validate_cmd_show_suggestion "failure" "$_target" exit $_failure
+    test_status_output_match "$_success" "$(regex_build_first_only "description" "$_target")" "validate_cmd_show_suggestion: Not Shows the suggestion on success" validate_cmd_show_suggestion "description" "$_target" exit $_success
+    test_status_output_match "$_failure" "$(regex_build_all "description" "$_target")" "validate_cmd_show_suggestion: Shows the suggestion on fail" validate_cmd_show_suggestion "description" "$_target" exit $_failure
 
     # validate_dependencies
     test_status_output_match "$_success" "All dependencies are installed" "validate_dependencies: all exists" validate_dependencies "ls" "cd"
@@ -276,13 +264,80 @@ test_assertions() {
     test_status_output_match "$_failure" "$_target" "assert_is_less_than_or_equal custom error" assert_is_less_than_or_equal 1 0 "$_target"
 }
 
+test_helpers_sanity_check() {
+    echo
+    # test_run
+}
+
+test_runners() {
+    echo
+    # run_silent
+    # run_autoinput
+    # run_autoinput_silent
+    # run_cmd_capture
+}
+
+test_file_operations() {
+    echo
+
+    # file_get_owner
+    # file_get_permissions
+    # path_exists
+    # path_is_readable
+    # path_is_writable
+    # file_exists
+    # dir_exists
+    # dir_is_readable
+    # dir_is_writable
+    # file_is_readable
+    # file_is_writable
+    # path_create
+    # file_clear
+    # file_str_append
+    # file_str_replace
+    # file_str_contains
+    # file_backup
+    # file_content_write
+    # file_create_with_content
+    # file_create_empty
+    # file_from_template
+    # file_make_executable
+    # file_copy
+    # file_move
+    # file_overwrite
+    # file_delete
+    # dir_delete_recursive
+}
+
+test_system_operations() {
+    echo
+    # command_exists
+    # source_if_exists
+}
+
+test_network_operations() {
+    echo
+    # download_file
+}
+
+test_flow() {
+    echo
+    # flow_run
+}
+
 fixtures=(
+    test_helpers_sanity_check
+    test_runners
     test_ui_messages
     test_user_interactions
     test_comparisons
     test_assertions
     test_validations
     test_regex
+    test_file_operations
+    test_system_operations
+    test_network_operations
+    test_flow
 )
 
 clear
