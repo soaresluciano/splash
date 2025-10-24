@@ -270,11 +270,49 @@ test_helpers_sanity_check() {
 }
 
 test_runners() {
-    echo
-    # run_silent
-    # run_autoinput
-    # run_autoinput_silent
+    stub_echo() {
+        local result="$1"
+        echo "$_target"
+        return "$result"
+    }
+
+    stub_reader() {
+        local result="$1"
+        read -r input
+        echo "$input"
+        return "$result"
+    }
+    
+    # sanity check for stub functions
+    test_status_output_match "$_success" "$_target" "stub_echo success" stub_echo "$_success"
+    test_status_output_match "$_failure" "$_target" "stub_echo failure" stub_echo "$_failure"
+    test_status_output_match "$_success" "$_target" "stub_reader success" run_autoinput "$_target" stub_reader "$_success"
+    test_status_output_match "$_failure" "$_target" "stub_reader failure" run_autoinput "$_target" stub_reader "$_failure"
+
     # run_cmd_capture
+    run_cmd_capture result_0 stub_echo "$_success"
+    local cmd_status_0=${result_0[status]}
+    local cmd_output_0=${result_0[output]}
+    test_status_is "$_success" "0 - run_cmd_capture status" is_success $cmd_status_0
+    test_status_is "$_success" "0 - run_cmd_capture output" are_equal_str "$cmd_output_0" "$_target"
+
+    run_cmd_capture result_1 stub_echo "$_failure"
+    local cmd_status_1=${result_1[status]}
+    local cmd_output_1=${result_1[output]}
+    test_status_is "$_success" "1 - run_cmd_capture status" is_failure $cmd_status_1
+    test_status_is "$_success" "1 - run_cmd_capture output" are_equal_str "$cmd_output_1" "$_target"
+
+    # run_silent
+    test_status_output_match "$_success" "$(regex_build_not "$_target")" "run_silent with success" run_silent stub_command $_success
+    #test_status_output_match "$_failure" "$(regex_build_not "$_target")" "run_silent with failure" run_silent stub_command $_failure
+
+    # run_autoinput
+    #test_status_output_match "$_success" "$_target" "run_autoinput with success" run_autoinput "$_target" stub_command $_success
+    #test_status_output_match "$_failure" "$_target" "run_autoinput with failure" run_autoinput "$_target" stub_command $_failure
+
+    # run_autoinput_silent
+    #test_status_output_match "$_success" "$(regex_build_not "$_target")" "run_autoinput_silent with success" run_autoinput_silent "$_target" stub_command $_success
+    #test_status_output_match "$_failure" "$(regex_build_not "$_target")" "run_autoinput_silent with failure" run_autoinput_silent "$_target" stub_command $_failure
 }
 
 test_file_operations() {

@@ -1532,7 +1532,7 @@ test_status_output_match() {
 
     local str_found final_test_result test_details
     regex_match "$actual_output" "$expected_regex" && str_found=$_success || str_found=$_failure
-    is_success $str_found && test_details="" || test_details="The expected pattern ($expected_regex) was not found"
+    is_success $str_found && test_details="" || test_details="The expected pattern ($expected_regex) could not be matched in the output."
     is_success $testrun_result && is_success $str_found && final_test_result=$_success || final_test_result=$_failure
     test_report "$test_name" "$final_test_result" "$test_details"
 }
