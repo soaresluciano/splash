@@ -107,12 +107,17 @@ test_ui_messages() {
 }
 
 test_user_interactions() {
+    #   - check that it waits for user input
+
     # prompt_continue:
     test_status_is "$_success" "prompt_continue: waits for Enter" run_autoinput "" prompt_continue
 
     # prompt_question
-    test_status_output_match "$_success" "$_target" "prompt_question: returns input" run_autoinput "$_target" prompt_question "Enter your name"
+    test_status_output_match "$_success" "$_target" "prompt_question: returns input" run_autoinput "$_target" prompt_question "QUESTION"
     test_status_output_match "$_success" "ABC" "prompt_question: enforces char limit" run_autoinput "ABCDE" prompt_question "Limited" "" 3
+    #   - check that it shows the correct message
+    #   - check that it DOES NOT shows any option (if not provided)
+    #   - check that it shows the correct options (if provided)
 
     # prompt_yesno
     test_status_is "$_success" "prompt_yesno: accepts 'y'" run_autoinput "y" prompt_yesno "Continue?"
@@ -120,15 +125,26 @@ test_user_interactions() {
     test_status_is "$_failure" "prompt_yesno: rejects 'n'" run_autoinput "n" prompt_yesno "Continue?"
     test_status_is "$_failure" "prompt_yesno: rejects 'N'" run_autoinput "N" prompt_yesno "Continue?"
     test_status_is "$_failure" "prompt_yesno: Enter defaults to no" run_autoinput "" prompt_yesno "Continue?"
+    #   - check that it shows the correct message
+    #   - check that it shows the options [y/N]
 
     # prompt_proceed
     test_status_is "$_success" "prompt_proceed: proceed on yes" run_autoinput "y" prompt_proceed "This will run."
     test_status_output_match "$_failure" "Operation cancelled by user." "prompt_proceed: cancel on no" run_autoinput "n" prompt_proceed "This will not run."
     test_status_is "$_success" "prompt_overwrite: overwrite on yes" run_autoinput "y" prompt_overwrite "file.txt"
+    #   - check that it shows the correct message
+    #   - check that it shows the options [y/N]
+    #   - simulate user pressing Enter (no input) and verify that it returns false (default)
+
 
     # prompt_overwrite
     test_status_output_match "$_failure" "Using existing 'RESOURCE'" "prompt_overwrite: keep existing on no" run_autoinput "n" prompt_overwrite "RESOURCE"
-    #TODO: add more tests for prompt_overwrite
+    #   - check that it shows the correct message when file exists
+    #   - check that it shows the options [y/N]
+    #  - simulate user input 'y' and verify that it returns true
+    #   - simulate user pressing Enter (no input) and verify that it returns false (default)
+    #   - verify that it shows the warning message when user chooses not to proceed
+    #   - check that it shows the success message when user chooses to overwrite
 
     # prompt_menu 
     # todo: implement tests for prompt_menu
