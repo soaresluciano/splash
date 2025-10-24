@@ -3,6 +3,36 @@ source ./spla.sh
 
 _target="TEST-TARGET-STRING"
 
+test_regex() {
+    local main_str="The quick brown fox"
+    test_status_is "$_success" "regex_match 1 word pass" regex_match "$main_str" "fox"
+    test_status_is "$_failure" "regex_match 1 word fail" regex_match "$main_str" "dog"
+
+    # regex_build_not
+    test_status_is "$_success" "regex_build_not pass" regex_match "$main_str" "$(regex_build_not "dog")"
+    test_status_is "$_failure" "regex_build_not fail" regex_match "$main_str" "$(regex_build_not "fox")"
+
+    # regex_build_first_only
+    test_status_is "$_success" "regex_build_first_only pass" regex_match "$main_str" "$(regex_build_first_only "quick" "dog")"
+    test_status_is "$_failure" "regex_build_first_only fail 1" regex_match "$main_str" "$(regex_build_first_only "quick" "fox")"
+    test_status_is "$_failure" "regex_build_first_only fail 2" regex_match "$main_str" "$(regex_build_first_only "dog" "cat")"
+
+    # regex_build_all
+    test_status_is "$_success" "regex_build_all pass" regex_match "$main_str" "$(regex_build_all "quick" "fox")"
+    test_status_is "$_failure" "regex_build_all fail 1" regex_match "$main_str" "$(regex_build_all "quick" "dog")"
+    test_status_is "$_failure" "regex_build_all fail 2" regex_match "$main_str" "$(regex_build_all "dog" "cat")"
+
+    # regex_build_none
+    test_status_is "$_success" "regex_build_none pass" regex_match "$main_str" "$(regex_build_none "dog" "cat")"
+    test_status_is "$_failure" "regex_build_none fail 1" regex_match "$main_str" "$(regex_build_none "fox" "dog")"
+    test_status_is "$_failure" "regex_build_none fail 2" regex_match "$main_str" "$(regex_build_none "quick" "fox")"
+
+    # regex_build_any
+    test_status_is "$_success" "regex_build_any pass 1" regex_match "$main_str" "$(regex_build_any "fox" "dog")"
+    test_status_is "$_success" "regex_build_any pass 2" regex_match "$main_str" "$(regex_build_any "cat" "quick")"
+    test_status_is "$_success" "regex_build_any pass 3" regex_match "$main_str" "$(regex_build_any "fox" "quick")"
+    test_status_is "$_failure" "regex_build_any fail" regex_match "$main_str" "$(regex_build_any "dog" "cat")"
+}
 
 test_ui_messages() {
     # show_title
@@ -30,7 +60,7 @@ test_ui_messages() {
     test_status_output_match "$_success" "$_target" "show_suggestion" show_suggestion "$_target"
 
     # show_keyvalue
-    #test_status_output_match "$_success" "Key: Value" "show_keyvalue" show_keyvalue "Key" "Value"
+    test_status_output_match "$_success" "$(regex_build_all "Key" "Value")" "show_keyvalue" show_keyvalue "Key" "Value"
 
     # show_question (no options)
     test_status_output_match "$_success" "$_target" "show_question (no options)" show_question "$_target"
@@ -39,24 +69,20 @@ test_ui_messages() {
     test_status_output_match "$_success" "OPTIONS" "show_question (with options)" show_question "question" "OPTIONS"
 
     # show_test_result (result = true, description)
-    # TODO: use regex to match both details and suggestion in any order
-    test_status_output_match "$_success" "OK" "show_test_result (result = true)" show_test_result "description" "$_success"
-    test_status_output_match "$_success" "DESCRIPTION" "show_test_result (result = true, description)" show_test_result "DESCRIPTION" "$_success"
+    test_status_output_match "$_success" "$(regex_build_all "DESCRIPTION" "OK")" "show_test_result (result = true, description)" show_test_result "DESCRIPTION" "$_success"
 
     # show_test_result (result=true, details)
     test_status_output_match "$_success" "DETAILS" "show_test_result (result=true, details)" show_test_result "description" "$_success" "DETAILS"
 
     # show_test_result (result= true, with suggestion)
-    #testcase_should_pass_and_not_match "SUGGESTION" "show_test_result (result=true, with suggestion)" show_test_result "description" "$_success" "" "SUGGESTION"
+    test_status_output_match "$_success" "$(regex_build_not "SUGGESTION")" "show_test_result (result=true, with suggestion)" show_test_result "description" "$_success" "" "SUGGESTION"
 
     # show_test_result (result=true, with suggestion and details)
     test_status_output_match "$_success" "DETAILS" "show_test_result (result=true, with suggestion and details)1" show_test_result "description" "$_success" "DETAILS" "SUGGESTION"
-    #testcase_should_pass_and_not_match "SUGGESTION" "show_test_result (result=true, with suggestion and details)2" show_test_result "description" "$_success" "DETAILS" "SUGGESTION"
+    test_status_output_match "$_success" "$(regex_build_not "SUGGESTION")" "show_test_result (result=true, with suggestion and details)2" show_test_result "description" "$_success" "DETAILS" "SUGGESTION"
 
     # show_test_result (description, result = false)
-    # TODO: use regex to match both details and suggestion in any order
-    test_status_output_match "$_failure" "FAIL" "show_test_result (result=false)" show_test_result "description" "$_failure"
-    #test_status_output_match "$_failure" "DESCRIPTION" "show_test_result (result=false)" show_test_result "DESCRIPTION" "$_failure"
+    test_status_output_match "$_failure" "$(regex_build_all "DESCRIPTION" "FAIL")" "show_test_result (result=false)" show_test_result "DESCRIPTION" "$_failure"
 
     # show_test_result (result = false, details)
     test_status_output_match "$_failure" "DETAILS" "show_test_result (result=false, details)" show_test_result "description" "$_failure" "DETAILS"
@@ -65,9 +91,7 @@ test_ui_messages() {
     test_status_output_match "$_failure" "SUGGESTION" "show_test_result (result=false, with suggestion)" show_test_result "description" "$_failure" "" "SUGGESTION"
 
     # show_test_result (result = false,suggestion and details)
-    # TODO: use regex to match both details and suggestion in any order
-    test_status_output_match "$_failure" "DETAILS" "show_test_result (result=false, with suggestion and details)" show_test_result "description" "$_failure" "DETAILS" "SUGGESTION"
-    test_status_output_match "$_failure" "SUGGESTION" "show_test_result (result=false, with suggestion and details)" show_test_result "description" "$_failure" "DETAILS" "SUGGESTION"
+    test_status_output_match "$_failure" "$(regex_build_all "SUGGESTION" "DETAILS")" "show_test_result (result=false, with suggestion and details)" show_test_result "description" "$_failure" "DETAILS" "SUGGESTION"
 
     # banner_attention (default)
     test_status_output_match "$_success" "ATTENTION" "banner_attention (default)" banner_attention
@@ -114,7 +138,7 @@ test_user_interactions() {
 
     # WITHOUT
     ## prompt_overwrite: do not overwrite on no -> validate_item should FAIL
-    # test_status_output_match "$_failure" "Using existing 'RESOURCE'" "prompt_overwrite: keep existing on no" run_autoinput "n" prompt_overwrite "RESOURCE"
+    test_status_output_match "$_failure" "Using existing 'RESOURCE'" "prompt_overwrite: keep existing on no" run_autoinput "n" prompt_overwrite "RESOURCE"
 }
 
 # test_menu() {
@@ -129,7 +153,7 @@ test_validations() {
     test_status_output_match "$_failure" "FAIL" "validate_cmd: Shows the correct failure message" validate_cmd "failure" exit $_failure
 
     # validate_cmd_show_suggestion
-    #testcase_should_pass_and_not_match "SUGGESTION" "validate_cmd_show_suggestion: Not Shows the suggestion on success" validate_cmd_show_suggestion "success" "SUGGESTION" exit $_success
+    test_status_output_match "$_success" "$(regex_build_not "SUGGESTION")" "validate_cmd_show_suggestion: Not Shows the suggestion on success" validate_cmd_show_suggestion "success" "SUGGESTION" exit $_success
     test_status_output_match "$_failure" "$_target" "validate_cmd_show_suggestion: Shows the suggestion on fail" validate_cmd_show_suggestion "failure" "$_target" exit $_failure
 
     # validate_dependencies
@@ -258,6 +282,8 @@ fixtures=(
     test_comparisons
     test_assertions
     test_validations
+    test_regex
 )
 
+clear
 test_fixtures_run "Unit Tests" "${fixtures[@]}"

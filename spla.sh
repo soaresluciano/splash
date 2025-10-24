@@ -1095,19 +1095,6 @@ is_failure() {
     are_equal_str "$1" "$_failure"
 }
 
-# Checks if a string matches a specified Perl-compatible regular expression pattern
-# Returns success if the string matches the pattern, failure otherwise
-# Usage: if pearl_match "Hello, world!" "^Hello"; then ... fi
-# Parameters:
-#   string: The string to test
-#   pattern: The Perl-compatible regular expression pattern
-pearl_match() {
-    local string="$1"
-    local pattern="$2"
-    printf '%s' "$string" | grep -qP -- "$pattern"
-    return $?
-}
-
 # Checks if a string contains a specified substring
 # Returns success if substring is found within the string, failure otherwise
 # Usage: if contains_str "Hello, world!" "world"; then ... fi
@@ -1117,8 +1104,88 @@ pearl_match() {
 contains_str() {
     local string="$1"
     local substring="$2"
-    pearl_match "$string" "$substring"
+    regex_match "$string" "$substring"
     return $?
+}
+
+# REGULAR EXPRESSIONS
+#==============================================================================
+
+# Performs a Perl-compatible regular expression match on a string
+# Returns success if the pattern matches the string, failure otherwise
+# Usage: if regex_match "Hello, world!" "world"; then ... fi
+# Parameters:
+#   string: The main string to search within
+#   pattern: The Perl-compatible regex pattern to match
+regex_match() {
+    local string="$1"
+    local pattern="$2"
+    printf '%s' "$string" | grep -Pzo "(?s)$pattern" >/dev/null
+    return $?
+}
+
+# Builds a regex pattern that matches strings not containing the specified substring
+# Usage: pattern=$(regex_not "forbidden")
+# Parameters:
+#   str: The substring that should not be present
+# Returns: A regex pattern string
+regex_build_not() {
+    local str="$1"
+    printf "^(?!.*$str).*\$"
+}
+
+# Builds a regex pattern that matches strings containing str1 but not str2
+# Usage: pattern=$(regex_first_only "required" "forbidden")
+# Parameters:
+#   str1: The substring that must be present
+#   str2: The substring that must not be present
+# Returns: A regex pattern string
+regex_build_first_only() {
+    local str1="$1"
+    local str2="$2"
+    printf "(?=.*$str1)(?!.*$str2).*"
+}
+
+# Builds a regex pattern that matches strings containing all specified substrings
+# Usage: pattern=$(regex_all "first" "second" "third")
+# Parameters:
+#   strs: Array of substrings that must all be present
+# Returns: A regex pattern string
+regex_build_all() {
+    local IFS=' '
+    local pattern=""
+    for str in "$@"; do
+        pattern+="(?=.*$str)"
+    done
+    printf "$pattern"
+}
+
+# Builds a regex pattern that matches strings containing any of the specified substrings
+# Usage: pattern=$(regex_any "option1" "option2" "option3")
+# Parameters:
+#   strs: Array of substrings where at least one must be present
+regex_build_any() {
+    local IFS='|'
+    local pattern=""
+    for str in "$@"; do
+        pattern+="$str|"
+    done
+    pattern="${pattern%|}"
+    printf "($pattern)"
+}
+
+# Builds a regex pattern that matches strings containing none of the specified substrings
+# Usage: pattern=$(regex_none "forbidden1" "forbidden2" "forbidden3")
+# Parameters:
+#   strs: Array of substrings that must not be present
+regex_build_none() {
+    local IFS='|'
+    local pattern=""
+    for str in "$@"; do
+        pattern+="$str|"
+    done
+    pattern="${pattern%|}"
+    printf "^(?!.*($pattern)).*\$"
 }
 
 # ASSERTIONS
@@ -1464,7 +1531,7 @@ test_status_output_match() {
     local testrun_result=$?
 
     local str_found final_test_result test_details
-    pearl_match "$actual_output" "$expected_regex" && str_found=$_success || str_found=$_failure
+    regex_match "$actual_output" "$expected_regex" && str_found=$_success || str_found=$_failure
     is_success $str_found && test_details="" || test_details="The expected pattern ($expected_regex) was not found"
     is_success $testrun_result && is_success $str_found && final_test_result=$_success || final_test_result=$_failure
     test_report "$test_name" "$final_test_result" "$test_details"
