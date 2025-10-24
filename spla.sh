@@ -131,7 +131,7 @@ styled() {
 # Shows a main app title
 # Usage: show_title "My Application Title"
 show_title() {
-    styled reverse bold magenta "\n$1\n"
+    styled reverse bold magenta "\n $1 \n"
 }
 
 # Shows a process or section header
@@ -1095,6 +1095,19 @@ is_failure() {
     are_equal_str "$1" "$_failure"
 }
 
+# Checks if a string matches a specified Perl-compatible regular expression pattern
+# Returns success if the string matches the pattern, failure otherwise
+# Usage: if pearl_match "Hello, world!" "^Hello"; then ... fi
+# Parameters:
+#   string: The string to test
+#   pattern: The Perl-compatible regular expression pattern
+pearl_match() {
+    local string="$1"
+    local pattern="$2"
+    printf '%s' "$string" | grep -qP -- "$pattern"
+    return $?
+}
+
 # Checks if a string contains a specified substring
 # Returns success if substring is found within the string, failure otherwise
 # Usage: if contains_str "Hello, world!" "world"; then ... fi
@@ -1104,7 +1117,7 @@ is_failure() {
 contains_str() {
     local string="$1"
     local substring="$2"
-    printf '%s' "$string" | grep -qF -- "$substring"
+    pearl_match "$string" "$substring"
     return $?
 }
 
@@ -1376,7 +1389,7 @@ run_cmd_capture() {
 #==============================================================================
 
 # Runs a test case command and captures output and status
-# Usage: testcase_run outvar expected_status command arg1 arg2
+# Usage: test_run outvar expected_status command arg1 arg2
 # Parameters:
 #   outvar: Name of variable to receive command output
 #   expected_status: Expected exit status (success/failure)
@@ -1385,7 +1398,7 @@ run_cmd_capture() {
 # Returns:
 #   Populates outvar with command output
 #   Returns success if command status matches expected_status, failure otherwise
-testcase_run() {
+test_run() {
     local __outvar="$1"
     local expected_status="$2"
     shift 2
@@ -1404,40 +1417,57 @@ testcase_run() {
     return "$test_result"
 }
 
-testcase_report() {
+# Reports the result of a test case and updates counters
+# Usage: test_report "Test Name" test_result "Test Details"
+# Parameters:
+#   test_name: Name of the test case
+#   test_result: Result of the test case (success/failure)
+#   test_details: Optional details about the test case
+test_report() {
     local test_name="$1"
     local test_result="$2"
     local test_details="${3:-}"
-    show_test_result "$test_name" "$final_test_result" "$test_details"
-    _testcase_counter_increase "$final_test_result"
+    show_test_result "$test_name" "$test_result" "$test_details"
+    _test_counter_increase "$test_result"
 }
 
+# Runs a test case and checks if the exit status matches expected
+# Usage: test_status_is expected_status "Test Name" command arg1 arg2
+# Parameters:
+#   expected_status: Expected exit status (success/failure)
+#   test_name: Name of the test case
+#   command: Command to run
+#   arg1, arg2, ...: Arguments to pass to the command
 test_status_is() {
     local expected_status="$1"
     local test_name="$2"
     shift 2
-    testcase_run actual_output "$expected_status" "$@"
-    testcase_report "$test_name" "$?"
+    test_run actual_output "$expected_status" "$@"
+    local testrun_result=$?
+    test_report "$test_name" "$testrun_result"
 }
 
+# Runs a test case and checks if the output matches a regex pattern
+# Usage: test_status_output_match expected_status "expected_regex" "Test Name" command arg1 arg2
+# Parameters:
+#   expected_status: Expected exit status (success/failure)
+#   expected_regex: Perl-compatible regex pattern to match against output
+#   test_name: Name of the test case
+#   command: Command to run
+#   arg1, arg2, ...: Arguments to pass to the command
 test_status_output_match() {
     local expected_status="$1"
     local expected_regex="$2"
     local test_name="$3"
     shift 3
-    testcase_run actual_output "$expected_status" "$@"
+    test_run actual_output "$expected_status" "$@"
     local testrun_result=$?
 
-    local str_found=$_failure
-    printf '%s\n' "$actual_output" | grep -qP -- "$expected_regex" && str_found=$_success
-
-    test_details=""
-    ! is_success $str_found && test_details="The expected pattern ($expected_regex) was not found"
-
-    final_test_result=$_failure
-    is_success $testrun_result && is_success $str_found && final_test_result=$_success
-
-    testcase_report "$test_name" "$final_test_result" "$test_details"
+    local str_found final_test_result test_details
+    pearl_match "$actual_output" "$expected_regex" && str_found=$_success || str_found=$_failure
+    is_success $str_found && test_details="" || test_details="The expected pattern ($expected_regex) was not found"
+    is_success $testrun_result && is_success $str_found && final_test_result=$_success || final_test_result=$_failure
+    test_report "$test_name" "$final_test_result" "$test_details"
 }
 
 # Runs a series of test cases and summarizes results
@@ -1447,27 +1477,28 @@ test_status_output_match() {
 test_fixtures_run() {
     local title="${1}"
     shift
-    _testcase_counter_reset
+    _test_counter_reset
     show_title "$title"
     for fixture in "$@"; do
+        show_header "Running fixture: $fixture"
         $fixture
     done
     echo
-    _testcase_counter_summary
+    _test_counter_summary
 }
 
 # INTERNAL TEST COUNTERS
 #==============================================================================
 
 # Resets the global test counter
-_testcase_counter_reset(){
+_test_counter_reset(){
     _testcase_counter_total_runs=0
     _testcase_counter_total_passed=0
     _testcase_counter_total_failed=0
 }
 
 # Increases test counters based on test result
-_testcase_counter_increase(){
+_test_counter_increase(){
     local test_result="$1"
     _testcase_counter_total_runs=$((_testcase_counter_total_runs + 1))
     if is_success "$test_result"; then
@@ -1478,7 +1509,7 @@ _testcase_counter_increase(){
 }
 
 # Displays a summary of test case results
-_testcase_counter_summary() {
+_test_counter_summary() {
     show_title "Test Results"
     echo -e "▫️ $(style bright_blue bold) Total Runs:$(style blue) $_testcase_counter_total_runs${_nc}"
     if [ $_testcase_counter_total_runs -eq 0 ]; then
@@ -1518,7 +1549,7 @@ validate_cmd_show_suggestion() {
     local description="$1"
     local fix_suggestion="$2"
     shift 2
-    testcase_run actual_output "$_success" "$@"
+    test_run actual_output "$_success" "$@"
     local testrun_result=$?
     show_test_result "Validating $description" "$testrun_result" "" "$fix_suggestion"
     return $testrun_result
