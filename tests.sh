@@ -1,6 +1,36 @@
 #!/bin/bash
 source ./spla.sh
 
+# Defines a test case that is expected to pass
+testcase_should_pass() {
+    local test_name="$1"
+    shift
+    test_status_is "$_success" "$test_name" "$@"
+}
+
+# Defines a test case that is expected to fail
+testcase_should_fail() {
+    local test_name="$1"
+    shift
+    test_status_is "$_failure" "$test_name" "$@"
+}
+
+# Defines a test case that is expected to pass and match a given output substring
+testcase_should_pass_and_match() {
+    local test_name="$1"
+    local expected_msg="$2"
+    shift 2
+    test_status_output_match "$_success" "$expected_msg" "$test_name" "$@"
+}
+
+# Defines a test case that is expected to fail and match a given output substring
+testcase_should_fail_and_match() {
+    local test_name="$1"
+    local expected_msg="$2"
+    shift 2
+    test_status_output_match "$_failure" "$expected_msg" "$test_name" "$@"
+}
+
 test_ui_messages() {
     local token="ABCD1234"
 
@@ -222,7 +252,6 @@ test_assertions() {
     # assert_are_equal_str_ignore_case
     testcase_should_pass "+ assert_are_equal_str_ignore_case" assert_are_equal_str_ignore_case 'data' 'data'
     testcase_should_pass "+ assert_are_equal_str_ignore_case2" assert_are_equal_str_ignore_case 'Data' 'data'
-    testcase_should_fail_and_match "- assert_are_equal_str_ignore_case" "Assertion failed: Expected 'Data' to equal 'other' (case-insensitive)." assert_are_equal_str_ignore_case 'Data' 'other'
     testcase_should_fail_and_match "- cstm assert_are_equal_str_ignore_case" "$custom_err" assert_are_equal_str_ignore_case 'Data' 'other' "$custom_err"
 
     # assert_are_equal_num

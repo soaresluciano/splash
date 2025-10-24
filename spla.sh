@@ -1376,7 +1376,7 @@ run_cmd_capture() {
 #==============================================================================
 
 # Runs a test case command and captures output and status
-# Usage: _testcase_run outvar expected_status command arg1 arg2
+# Usage: testcase_run outvar expected_status command arg1 arg2
 # Parameters:
 #   outvar: Name of variable to receive command output
 #   expected_status: Expected exit status (success/failure)
@@ -1385,7 +1385,7 @@ run_cmd_capture() {
 # Returns:
 #   Populates outvar with command output
 #   Returns success if command status matches expected_status, failure otherwise
-_testcase_run() {
+testcase_run() {
     local __outvar="$1"
     local expected_status="$2"
     shift 2
@@ -1404,77 +1404,40 @@ _testcase_run() {
     return "$test_result"
 }
 
-# Defines and runs a test case with expected status and optional output matching
-# Usage: testcase expected_status "test name" "expected substring" command arg1 arg2
-# Parameters:
-#   expected_status: Expected exit status (success/failure)
-#   test_name: Name/description of the test case
-#   expected_str: Optional substring expected to be found in command output
-#   command: Command to run
-#   arg1, arg2, ...: Arguments to pass to the command
-# Returns:
-#   Displays test result and updates test counters
-testcase() {
-    local expected_status="$1"
-    local test_name="$2"
-    local expected_str="${3:-}"
-    shift 3
-
-    _testcase_run actual_output "$expected_status" "$@"
-    local testrun_result=$?
-
-    local test_details final_test_result
-
-    if is_not_empty "$expected_str"; then
-        local str_found=$_failure
-        contains_str "$actual_output" "$expected_str" && str_found=$_success
-
-        test_details=""
-        ! is_success $str_found && test_details="The expected string ($expected_str) was not found"
-
-        final_test_result=$_failure
-        is_success $testrun_result && is_success $str_found && final_test_result=$_success
-    else
-        final_test_result=$testrun_result
-        test_details=""
-    fi
-
+testcase_report() {
+    local test_name="$1"
+    local test_result="$2"
+    local test_details="${3:-}"
     show_test_result "$test_name" "$final_test_result" "$test_details"
     _testcase_counter_increase "$final_test_result"
-
-    return $test_result
 }
 
-# Convenience wrappers for common test case scenarios
-
-# Defines a test case that is expected to pass
-testcase_should_pass() {
-    local test_name="$1"
-    shift
-    testcase $_success "$test_name" "" "$@"
-}
-
-# Defines a test case that is expected to fail
-testcase_should_fail() {
-    local test_name="$1"
-    shift
-    testcase  $_failure "$test_name" "" "$@"
-}
-
-# Defines a test case that is expected to pass and match a given output substring
-testcase_should_pass_and_match() {
-    local test_name="$1"
-    local expected_msg="$2"
+test_status_is() {
+    local expected_status="$1"
+    local test_name="$2"
     shift 2
-    testcase $_success "$test_name" "$expected_msg" "$@"
+    testcase_run actual_output "$expected_status" "$@"
+    testcase_report "$test_name" "$?"
 }
 
-# Defines a test case that is expected to fail and match a given output substring
-testcase_should_fail_and_match() {
-    local test_name="$1"
-    local expected_msg="$2"
-    shift 2
-    testcase $_failure "$test_name" "$expected_msg" "$@"
+test_status_output_match() {
+    local expected_status="$1"
+    local expected_regex="$2"
+    local test_name="$3"
+    shift 3
+    testcase_run actual_output "$expected_status" "$@"
+    local testrun_result=$?
+
+    local str_found=$_failure
+    printf '%s\n' "$actual_output" | grep -qP -- "$expected_regex" && str_found=$_success
+
+    test_details=""
+    ! is_success $str_found && test_details="The expected pattern ($expected_regex) was not found"
+
+    final_test_result=$_failure
+    is_success $testrun_result && is_success $str_found && final_test_result=$_success
+
+    testcase_report "$test_name" "$final_test_result" "$test_details"
 }
 
 # Runs a series of test cases and summarizes results
@@ -1555,7 +1518,7 @@ validate_cmd_show_suggestion() {
     local description="$1"
     local fix_suggestion="$2"
     shift 2
-    _testcase_run actual_output "$_success" "$@"
+    testcase_run actual_output "$_success" "$@"
     local testrun_result=$?
     show_test_result "Validating $description" "$testrun_result" "" "$fix_suggestion"
     return $testrun_result
