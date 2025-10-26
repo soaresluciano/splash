@@ -832,7 +832,8 @@ sudoing () {
 # Returns success if command exists, failure if it doesn't
 # Usage: if command_exists "git"; then ... fi
 command_exists() {
-    return "$(run_silent command -v "$1")"
+    run_silent command -v "$1"
+    return $?
 }
 
 # Sources a file if it exists
@@ -1111,6 +1112,7 @@ contains_str() {
 # REGULAR EXPRESSIONS
 #==============================================================================
 
+
 # Performs a Perl-compatible regular expression match on a string
 # Returns success if the pattern matches the string, failure otherwise
 # Usage: if regex_match "Hello, world!" "world"; then ... fi
@@ -1120,8 +1122,26 @@ contains_str() {
 regex_match() {
     local string="$1"
     local pattern="$2"
-    printf '%s' "$string" | grep -Pzo "(?s)$pattern" >/dev/null
+
+    local grep_args;
+    # Detect multiline flag (?s) at start of pattern
+    if [[ "$pattern" == '(?s)'* ]]; then
+        grep_args="Pzo"
+    else
+        grep_args="Pq"
+    fi
+
+    printf '%s\n' "$string" | grep -"$grep_args" "$pattern" >/dev/null
     return $?
+}
+
+regex_build_empty() {
+    printf "^$"
+}
+
+build_regex_has() {
+    local str="$1"
+    printf "(?s)(?=.*$str).*"
 }
 
 # Builds a regex pattern that matches strings not containing the specified substring
@@ -1131,7 +1151,7 @@ regex_match() {
 # Returns: A regex pattern string
 regex_build_not() {
     local str="$1"
-    printf "^(?!.*$str).*\$"
+    printf "(?s)^(?!.*$str).*\$"
 }
 
 # Builds a regex pattern that matches strings containing str1 but not str2
@@ -1143,7 +1163,7 @@ regex_build_not() {
 regex_build_first_only() {
     local str1="$1"
     local str2="$2"
-    printf "(?=.*$str1)(?!.*$str2).*"
+    printf "(?s)(?=.*$str1)(?!.*$str2).*"
 }
 
 # Builds a regex pattern that matches strings containing all specified substrings
@@ -1157,7 +1177,7 @@ regex_build_all() {
     for str in "$@"; do
         pattern+="(?=.*$str)"
     done
-    printf "$pattern"
+    printf "(?s)%s" "$pattern"
 }
 
 # Builds a regex pattern that matches strings containing any of the specified substrings
@@ -1171,7 +1191,7 @@ regex_build_any() {
         pattern+="$str|"
     done
     pattern="${pattern%|}"
-    printf "($pattern)"
+    printf "(?s)($pattern)"
 }
 
 # Builds a regex pattern that matches strings containing none of the specified substrings
@@ -1185,7 +1205,7 @@ regex_build_none() {
         pattern+="$str|"
     done
     pattern="${pattern%|}"
-    printf "^(?!.*($pattern)).*\$"
+    printf "(?s)^(?!.*($pattern)).*\$"
 }
 
 # ASSERTIONS
@@ -1396,7 +1416,7 @@ flow_run(){
 #   arg1, arg2, ...: Arguments to pass to the command
 run_silent() {
     "$@" >/dev/null 2>&1
-    printf '%s' "$?"
+    return $?
 }
 
 # Simulates interactive input for a command by piping predefined input
