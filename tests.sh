@@ -17,42 +17,59 @@ _stub_reader() {
 }
 
 test_regex() {
-    local main_str="The quick brown fox"
+    local single_line_str="The quick brown fox"
+    local multi_line_str=$'Lorem ipsum dolor sit amet\nconsectetur adipiscing elit'
 
-    # TODO: Test multiline cases
+    test_status_is "$_success" "regex_match single-line, 1 word pass" regex_match "$single_line_str" "fox"
+    test_status_is "$_failure" "regex_match single-line, 1 word fail" regex_match "$single_line_str" "dog"
+    test_status_is "$_success" "regex_match multi-line, 1 word pass" regex_match "$multi_line_str" "ipsum"
+    test_status_is "$_failure" "regex_match multi-line, 1 word fail" regex_match "$multi_line_str" "dog"
 
     # regex_build_empty
-
-    # regex_build_has
-
-    test_status_is "$_success" "regex_match 1 word pass" regex_match "$main_str" "fox"
-    test_status_is "$_failure" "regex_match 1 word fail" regex_match "$main_str" "dog"
+    test_status_is "$_success" "regex_build_empty pass" regex_match "" "$(regex_build_empty)"
+    test_status_is "$_failure" "regex_build_empty fail" regex_match "$single_line_str" "$(regex_build_empty)"
 
     # regex_build_not
-    test_status_is "$_success" "regex_build_not pass" regex_match "$main_str" "$(regex_build_not "dog")"
-    test_status_is "$_failure" "regex_build_not fail" regex_match "$main_str" "$(regex_build_not "fox")"
+    test_status_is "$_success" "regex_build_not single-line, pass" regex_match "$single_line_str" "$(regex_build_not "dog")"
+    test_status_is "$_failure" "regex_build_not single-line, fail" regex_match "$single_line_str" "$(regex_build_not "fox")"
+    test_status_is "$_success" "regex_build_not multi-line, pass" regex_match "$multi_line_str" "$(regex_build_not "dog")"
+    test_status_is "$_failure" "regex_build_not multi-line, fail" regex_match "$multi_line_str" "$(regex_build_not "ipsum")"
 
     # regex_build_first_only
-    test_status_is "$_success" "regex_build_first_only pass" regex_match "$main_str" "$(regex_build_first_only "quick" "dog")"
-    test_status_is "$_failure" "regex_build_first_only fail 1" regex_match "$main_str" "$(regex_build_first_only "quick" "fox")"
-    test_status_is "$_failure" "regex_build_first_only fail 2" regex_match "$main_str" "$(regex_build_first_only "dog" "cat")"
-    test_status_is "$_failure" "regex_build_first_only fail 3" regex_match "$main_str" "$(regex_build_first_only "dog" "fox")"
+    test_status_is "$_success" "regex_build_first_only single-line, pass" regex_match "$single_line_str" "$(regex_build_first_only "quick" "dog")"
+    test_status_is "$_failure" "regex_build_first_only single-line, fail 1" regex_match "$single_line_str" "$(regex_build_first_only "quick" "fox")"
+    test_status_is "$_failure" "regex_build_first_only single-line, fail 2" regex_match "$single_line_str" "$(regex_build_first_only "dog" "cat")"
+    test_status_is "$_failure" "regex_build_first_only single-line, fail 3" regex_match "$single_line_str" "$(regex_build_first_only "dog" "fox")"
+    test_status_is "$_success" "regex_build_first_only multi-line, pass" regex_match "$multi_line_str" "$(regex_build_first_only "ipsum" "dog")"
+    test_status_is "$_failure" "regex_build_first_only multi-line, fail 1" regex_match "$multi_line_str" "$(regex_build_first_only "quick" "ipsum")"
+    test_status_is "$_failure" "regex_build_first_only multi-line, fail 2" regex_match "$multi_line_str" "$(regex_build_first_only "dog" "cat")"
+    test_status_is "$_failure" "regex_build_first_only multi-line, fail 3" regex_match "$multi_line_str" "$(regex_build_first_only "dog" "fox")"
 
     # regex_build_all
-    test_status_is "$_success" "regex_build_all pass" regex_match "$main_str" "$(regex_build_all "quick" "fox")"
-    test_status_is "$_failure" "regex_build_all fail 1" regex_match "$main_str" "$(regex_build_all "quick" "dog")"
-    test_status_is "$_failure" "regex_build_all fail 2" regex_match "$main_str" "$(regex_build_all "dog" "cat")"
+    test_status_is "$_success" "regex_build_all single-line, pass" regex_match "$single_line_str" "$(regex_build_all "quick" "fox")"
+    test_status_is "$_failure" "regex_build_all single-line, fail 1" regex_match "$single_line_str" "$(regex_build_all "quick" "dog")"
+    test_status_is "$_failure" "regex_build_all single-line, fail 2" regex_match "$single_line_str" "$(regex_build_all "dog" "cat")"
+    test_status_is "$_success" "regex_build_all multi-line, pass" regex_match "$multi_line_str" "$(regex_build_all "ipsum" "elit")"
+    test_status_is "$_failure" "regex_build_all multi-line, fail 1" regex_match "$multi_line_str" "$(regex_build_all "ipsum" "dog")"
+    test_status_is "$_failure" "regex_build_all multi-line, fail 2" regex_match "$multi_line_str" "$(regex_build_all "dog" "cat")"
 
     # regex_build_none
-    test_status_is "$_success" "regex_build_none pass" regex_match "$main_str" "$(regex_build_none "dog" "cat")"
-    test_status_is "$_failure" "regex_build_none fail 1" regex_match "$main_str" "$(regex_build_none "fox" "dog")"
-    test_status_is "$_failure" "regex_build_none fail 2" regex_match "$main_str" "$(regex_build_none "quick" "fox")"
+    test_status_is "$_success" "regex_build_none single-line, pass" regex_match "$single_line_str" "$(regex_build_none "dog" "cat")"
+    test_status_is "$_failure" "regex_build_none single-line, fail 1" regex_match "$single_line_str" "$(regex_build_none "fox" "dog")"
+    test_status_is "$_failure" "regex_build_none single-line, fail 2" regex_match "$single_line_str" "$(regex_build_none "quick" "fox")"
+    test_status_is "$_success" "regex_build_none multi-line, pass" regex_match "$multi_line_str" "$(regex_build_none "dog" "cat")"
+    test_status_is "$_failure" "regex_build_none multi-line, fail 1" regex_match "$multi_line_str" "$(regex_build_none "ipsum" "dog")"
+    test_status_is "$_failure" "regex_build_none multi-line, fail 2" regex_match "$multi_line_str" "$(regex_build_none "quick" "ipsum")"
 
     # regex_build_any
-    test_status_is "$_success" "regex_build_any pass 1" regex_match "$main_str" "$(regex_build_any "fox" "dog")"
-    test_status_is "$_success" "regex_build_any pass 2" regex_match "$main_str" "$(regex_build_any "cat" "quick")"
-    test_status_is "$_success" "regex_build_any pass 3" regex_match "$main_str" "$(regex_build_any "fox" "quick")"
-    test_status_is "$_failure" "regex_build_any fail" regex_match "$main_str" "$(regex_build_any "dog" "cat")"
+    test_status_is "$_success" "regex_build_any single-line, pass 1" regex_match "$single_line_str" "$(regex_build_any "fox" "dog")"
+    test_status_is "$_success" "regex_build_any single-line, pass 2" regex_match "$single_line_str" "$(regex_build_any "cat" "quick")"
+    test_status_is "$_success" "regex_build_any single-line, pass 3" regex_match "$single_line_str" "$(regex_build_any "fox" "quick")"
+    test_status_is "$_failure" "regex_build_any single-line, fail" regex_match "$single_line_str" "$(regex_build_any "dog" "cat")"
+    test_status_is "$_success" "regex_build_any multi-line, pass 1" regex_match "$multi_line_str" "$(regex_build_any "ipsum" "dog")"
+    test_status_is "$_success" "regex_build_any multi-line, pass 2" regex_match "$multi_line_str" "$(regex_build_any "cat" "ipsum")"
+    test_status_is "$_success" "regex_build_any multi-line, pass 3" regex_match "$multi_line_str" "$(regex_build_any "ipsum" "elit")"
+    test_status_is "$_failure" "regex_build_any multi-line, fail" regex_match "$multi_line_str" "$(regex_build_any "dog" "cat")"
 }
 
 test_ui_messages() {
@@ -330,12 +347,12 @@ test_runners() {
     test_status_output_match "$_failure" "$(regex_build_not "$_target")" "run_silent with failure" run_silent _stub_echo $_failure
 
     # run_autoinput
-    #test_status_output_match "$_success" "$_target" "run_autoinput with success" run_autoinput "$_target" _stub_echo $_success
-    #test_status_output_match "$_failure" "$_target" "run_autoinput with failure" run_autoinput "$_target" _stub_echo $_failure
+    test_status_output_match "$_success" "$_target" "run_autoinput with success" run_autoinput "$_target" _stub_echo $_success
+    test_status_output_match "$_failure" "$_target" "run_autoinput with failure" run_autoinput "$_target" _stub_echo $_failure
 
     # run_autoinput_silent
-    #test_status_output_match "$_success" "$(regex_build_not "$_target")" "run_autoinput_silent with success" run_autoinput_silent "$_target" _stub_echo $_success
-    #test_status_output_match "$_failure" "$(regex_build_not "$_target")" "run_autoinput_silent with failure" run_autoinput_silent "$_target" _stub_echo $_failure
+    test_status_output_match "$_success" "$(regex_build_not "$_target")" "run_autoinput_silent with success" run_autoinput_silent "$_target" _stub_echo $_success
+    test_status_output_match "$_failure" "$(regex_build_not "$_target")" "run_autoinput_silent with failure" run_autoinput_silent "$_target" _stub_echo $_failure
 }
 
 test_file_operations() {

@@ -1135,13 +1135,11 @@ regex_match() {
     return $?
 }
 
+# Builds a regex pattern that matches empty strings
+# Usage: pattern=$(regex_empty)
+# Returns: A regex pattern string
 regex_build_empty() {
     printf "^$"
-}
-
-build_regex_has() {
-    local str="$1"
-    printf "(?s)(?=.*$str).*"
 }
 
 # Builds a regex pattern that matches strings not containing the specified substring
