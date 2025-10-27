@@ -3,19 +3,6 @@ source ../spla.sh
 
 _target="TEST-TARGET-STRING"
 
-_stub_echo() {
-    local result="$1"
-    echo "$_target"
-    return "$result"
-}
-
-_stub_reader() {
-    local result="$1"
-    read -r input
-    echo "$input"
-    return "$result"
-}
-
 test_regex() {
     local single_line_str="The quick brown fox"
     local multi_line_str=$'Lorem ipsum dolor sit amet\nconsectetur adipiscing elit'
@@ -321,6 +308,19 @@ test_helpers_sanity_check() {
 }
 
 test_runners() {
+    _stub_echo() {
+        local result="$1"
+        echo "$_target"
+        return "$result"
+    }
+
+    _stub_reader() {
+        local result="$1"
+        read -r input
+        echo "$input"
+        return "$result"
+    }
+
     # sanity check for stub functions
     test_status_output_match "$_success" "$_target" "_stub_echo success" _stub_echo "$_success"
     test_status_output_match "$_failure" "$_target" "_stub_echo failure" _stub_echo "$_failure"
