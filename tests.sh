@@ -172,9 +172,17 @@ test_user_interactions() {
     test_status_output_match "$_success" "$(regex_build_not  "Using existing '$_target'")" "prompt_overwrite: show correct message" run_autoinput "y" prompt_overwrite "$_target"
     test_status_output_match "$_failure" "Using existing '$_target'" "prompt_overwrite: keep existing on no" run_autoinput "n" prompt_overwrite "$_target"
     test_status_output_match "$_failure" "Using existing '$_target'" "prompt_overwrite: Enter defaults to no" run_autoinput "" prompt_overwrite "$_target"
+}
 
-    # prompt_menu 
-    # todo: implement tests for prompt_menu
+test_prompt_menu() {
+    local menu_options=("Option-A" "Option-B" "Option-C")
+    test_status_output_match "$_success" "$(regex_build_all "$_target" "Option-A" "Option-B" "Option-C")" "prompt_menu: shows correct menu" run_autoinput "1" prompt_menu "$_target" "${menu_options[@]}"
+    test_status_output_match "$_success" "Invalid choice. Please enter a number between 1 and 3." \
+        "prompt_menu: select wrong option" run_autoinput "x\n1" prompt_menu "$_target" "${menu_options[@]}"
+    # Last line output matches selected option
+    test_status_output_match "$_success" '^Option-A\s*$' "prompt_menu: 1 is selected" run_autoinput "1" prompt_menu "$_target" "${menu_options[@]}"
+    test_status_output_match "$_success" '^Option-B\s*$' "prompt_menu: 2 is selected" run_autoinput "2" prompt_menu "$_target" "${menu_options[@]}"
+    test_status_output_match "$_success" '^Option-C\s*$' "prompt_menu: 3 is selected" run_autoinput "3" prompt_menu "$_target" "${menu_options[@]}"
 }
 
 test_validations() {
@@ -380,6 +388,9 @@ test_file_operations() {
 test_system_operations() {
     echo
     # command_exists
+    test_status_is "$_success" "command_exists: existing command" command_exists "ls"
+    test_status_is "$_failure" "command_exists: non-existing command" command_exists "badcmd"
+
     # source_if_exists
 }
 
@@ -398,6 +409,7 @@ fixtures=(
     test_runners
     test_ui_messages
     test_user_interactions
+    test_prompt_menu
     test_comparisons
     test_assertions
     test_validations
