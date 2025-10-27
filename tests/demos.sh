@@ -1,5 +1,5 @@
 #!/bin/bash
-source ./spla.sh
+source ../spla.sh
 
 demo_utils() {
     show_keyvalue "get_script_dir" "$(get_script_dir)"

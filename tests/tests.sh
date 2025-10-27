@@ -1,5 +1,5 @@
 #!/bin/bash
-source ./spla.sh
+source ../spla.sh
 
 _target="TEST-TARGET-STRING"
 
