@@ -392,6 +392,8 @@ test_system_operations() {
     test_status_is "$_failure" "command_exists: non-existing command" command_exists "badcmd"
 
     # source_if_exists
+    test_status_is "$_success" "source_if_exists: existing file" source_if_exists ".test_target"
+    test_status_is "$_failure" "source_if_exists: non-existing file" source_if_exists "/path/to/nonexistent/file"
 }
 
 test_network_operations() {

@@ -843,8 +843,10 @@ command_exists() {
 source_if_exists() {
     if file_is_readable "$1"; then
         source "$1"
+        return $_success
     else
         show_error "File $1 cannot be sourced"
+        return $_failure
     fi
 }
 
