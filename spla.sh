@@ -560,7 +560,7 @@ file_str_append() {
     local filename="${_PARSED_ARGS[0]}"
     local content="${_PARSED_ARGS[1]}"
     _build_args file_is_writable "$filename" || {
-        show_error "Nothing was appended."
+        show_error "Cannot append to the file '$filename'."
         return
     }
     echo "$content" | ${_SUDO_CMD}tee -a "$filename"
@@ -582,7 +582,7 @@ file_str_replace() {
     local filename="${_PARSED_ARGS[0]}"
     local pairs=("${_PARSED_ARGS[@]:1}")
     _build_args file_is_writable "$filename" || {
-        show_error "No replacements made."
+        show_error "Cannot modify the file '$filename'."
         return
     }
     for pair in "${pairs[@]}"; do
@@ -609,7 +609,7 @@ file_str_contains() {
 # Parameters:
 #   filename: Path to the file to backup
 #   --sudo: Use sudo for the file operation - Optional boolean flag
-file_backup () {
+file_backup() {
     _parse_common_params "$@"
     local filename="${_PARSED_ARGS[0]}"
     _build_args file_exists "$filename" --no-log || {

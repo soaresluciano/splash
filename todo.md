@@ -71,8 +71,6 @@ Compression
 - unrar
 
 FileSys
-- create_dir
-- delete_file
 - delete_directory
 - copy_files(file_names: list, source_dir: str, dest_dir: str, sudo: bool = False) 
 - files_validation(expected_file_names: list, directory: str)

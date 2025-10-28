@@ -384,32 +384,161 @@ test_file_operations() {
     echo
 
     # file_get_owner
+    ## file exist
+    ## file not exist
+
     # file_get_permissions
+    ## file exist
+    ## file not exist
+
     # path_exists
+    ## dir exist ?
+    ## dir not exist, _log_is_on
+    ## dir not exist, _log_is_off
+    ## file exist ?
+    ## file not exist, _log_is_on
+    ## file not exist, _log_is_off
+
     # path_is_readable
-    # path_is_writable
+    ## dir not exist ?
+    ## dir readable ?
+    ## dir not readable, _log_is_on
+    ## dir not readable, _log_is_off
+    ## file not exist ?
+    ## file readable ?
+    ## file not readable, _log_is_on
+    ## file not readable, _log_is_off
+
+    # path_is_writable ?
+    ## dir not exist ?``
+    ## dir writable ?
+    ## dir not writable, _log_is_on
+    ## dir not writable, _log_is_off
+    ## file not exist ?
+    ## file writable ?
+    ## file not writable, _log_is_on
+    ## file not writable, _log_is_off
+
     # file_exists
+    ## file exist
+    ## file not exist, _log_is_on
+    ## file not exist, _log_is_off
+
     # dir_exists
-    # dir_is_readable
-    # dir_is_writable
-    # file_is_readable
-    # file_is_writable
-    # path_create
-    # file_clear
-    # file_str_append
-    # file_str_replace
-    # file_str_contains
-    # file_backup
-    # file_content_write
-    # file_create_with_content
-    # file_create_empty
-    # file_from_template
-    # file_make_executable
-    # file_copy
-    # file_move
-    # file_overwrite
-    # file_delete
-    # dir_delete_recursive
+    ## dir exist ?
+    ## dir not exist, _log_is_on
+    ## dir not exist, _log_is_off
+    
+    # dir_is_readable (--sudo --no-log)
+    ## dir readable
+    ## dir not readable
+
+    # dir_is_writable (--sudo --no-log)
+    ## dir writable
+    ## dir not writable
+
+    # file_is_readable (--sudo --no-log)
+    ## file readable
+    ## file not readable
+
+    # file_is_writable (--sudo --no-log)
+    ## file writable
+    ## file not writable
+
+    # path_create (--sudo)
+    ## dir exists
+    ## dir not exists
+    ## file exists
+    ## file not exists
+
+    # file_clear  (--sudo)
+    ## file does not exist
+    ## file is not writable
+    ## file is writable
+
+    # file_str_append (--sudo)
+    # file does not exist
+    # file is not writable
+    # file is writable
+
+    # file_str_replace (--sudo)
+
+    # file_str_contains 
+    # TODO: check implementation
+
+    # file_backup (--sudo)
+    ## file does not exist
+    ## file exists / file is not readable ?
+
+    # file_content_write (--sudo --no-log)
+    ## file does not exist
+    ## file is not writable
+    ## file is writable and blank content
+    ## file is writable and non-blank content
+
+    # file_create_with_content (--sudo)
+    ## file does not exist
+    ## file exists
+    ## ?
+
+    # file_create_empty (--sudo)
+    ## file does not exist
+    ## file exists
+    ## ?
+
+    # file_from_template (--sudo)
+    ## template does not exist
+    ## template is not readable
+    ## file does not exist
+    ## file exists
+    ## ?
+
+    # file_make_executable (--sudo)
+    ## file does not exist
+    ## file is not writable
+    ## file is writable
+
+    # file_copy (--sudo)
+    ## file does not exist
+    ## file is not readable
+    ## file is readable
+    ## dest is a file
+    ## dest is a dir
+    ### dest does not exist
+    ### dest is not writable
+    ### dest is writable
+
+    # file_move (--sudo)
+    ## file does not exist
+    ## file is not readable
+    ## file is readable
+    ## dest is a file
+    ## dest is a dir
+    ### dest does not exist
+    ### dest is not writable
+    ### dest is writable
+
+    # file_overwrite (--sudo)
+    ## file does not exist
+    ## file is not readable
+    ## file is readable
+    ## dest is a file
+    ## dest is a dir
+    ### dest does not exist
+    ### dest is not writable
+    ### dest is writable
+
+    # file_delete (--sudo --ask)
+    ## file does not exist
+    ## file is not writable ?
+    ## file is writable proceed
+    ## file is writable cancel
+
+    # dir_delete_recursive (--sudo --ask)
+    ## dir does not exist
+    ## dir is not writable ?
+    ## dir is writable proceed
+    ## dir is writable cancel
 }
 
 test_system_operations() {
@@ -423,9 +552,35 @@ test_system_operations() {
     test_status_is "$_failure" "source_if_exists: non-existing file" source_if_exists "/path/to/nonexistent/file"
 }
 
+test_system_info() {
+    echo
+    # system_distro_name
+    ## success and is not empty
+
+    # system_distro_id
+    ## success and is not empty
+
+    # system_kernel_version
+    ## success and is not empty
+
+    # system_architecture
+    ## success and is not empty
+
+    # system_desktop_environment
+    ## success and is not empty
+
+    # system_display_server
+    ## success and is not empty
+}
+
 test_network_operations() {
     echo
-    # download_file
+    # download_file (--use_sudo)
+    ## destination dir does not exist
+    ## destination dir not writable
+    ## invalid URL
+    ## download success with dest defined
+    ## download success with dest undefined
 }
 
 test_flow() {
