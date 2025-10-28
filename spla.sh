@@ -1383,7 +1383,7 @@ flow_run(){
                     show_success "Step '$step_description' completed successfully"
                 else
                     echo
-                    show_error "Step '$step_description' failed with exit code $?"
+                    show_error "The execution of '$step_description' failed."
                     prompt_yesno "Do you want to continue the flow despite the error?" || {
                         show_warning "Aborting flow execution due to error"
                         exit 1

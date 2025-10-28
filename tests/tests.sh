@@ -435,8 +435,10 @@ test_flow() {
         local input_seq="$2"
         local positive_regex="$3"
         local negative_regex="$4"
-        test_status_output_match "$_success" "$positive_regex" "flow_run: $test_name positive" run_autoinput "$input_seq" flow_run flow
-        test_status_output_match "$_success" "$negative_regex" "flow_run: $test_name negative" run_autoinput "$input_seq" flow_run flow
+        local expected_status="${5:-$_success}"
+        local flow_steps="${6:-flow}"
+        test_status_output_match "$expected_status" "$positive_regex" "flow_run: $test_name positive" run_autoinput "$input_seq" flow_run $flow_steps
+        test_status_output_match "$expected_status" "$negative_regex" "flow_run: $test_name negative" run_autoinput "$input_seq" flow_run $flow_steps
     }
 
     # flow input keys
@@ -445,11 +447,12 @@ test_flow() {
     local quit=3
 
     # STEP A definitions
-    local stepA_head_msg="\[1/2] STEP: Step A"
-    local stepA_run_msg="Execution of Step A"
-    local stepA_executing_message="Executing STEP: Step A"
-    local stepA_skipping_message="Skipping STEP: Step A"
-    local stepA_completed_message="Step 'Step A' completed successfully"
+    local stepA_name="Step A"
+    local stepA_head_msg="\[1/2] STEP: $stepA_name"
+    local stepA_run_msg="Execution of $stepA_name"
+    local stepA_executing_message="Executing STEP: $stepA_name"
+    local stepA_skipping_message="Skipping STEP: $stepA_name"
+    local stepA_completed_message="Step '$stepA_name' completed successfully"
 
     stepA() {
         echo "$stepA_run_msg"
@@ -457,11 +460,12 @@ test_flow() {
     }
 
     # STEP B definitions
-    local stepB_head_msg="\[2/2] STEP: Step B"
-    local stepB_run_msg="Execution of Step B"
-    local stepB_executing_message="Executing STEP: Step B"
-    local stepB_skipping_message="Skipping STEP: Step B"
-    local stepB_completed_message="Step 'Step B' completed successfully"
+    local stepB_name="Step B"
+    local stepB_head_msg="\[2/2] STEP: $stepB_name"
+    local stepB_run_msg="Execution of $stepB_name"
+    local stepB_executing_message="Executing STEP: $stepB_name"
+    local stepB_skipping_message="Skipping STEP: $stepB_name"
+    local stepB_completed_message="Step '$stepB_name' completed successfully"
 
     stepB() {
         echo "$stepB_run_msg"
@@ -626,6 +630,81 @@ test_flow() {
     _flow_test_helper "Quit on A" "$quit" \
         "$(regex_build_all "${quit_positive_items[@]}")" \
         "$(regex_build_none "${quit_negative_items[@]}")"
+
+    # STEP with failure
+
+    # STEP F definitions
+    local stepF_name="Step F"
+    local stepF_head_msg="\[1/2] STEP: $stepF_name"
+    local stepF_run_msg="Execution of $stepF_name"
+    local stepF_executing_message="Executing STEP: $stepF_name"
+    local stepF_skipping_message="Skipping STEP: $stepF_name"
+    local stepF_completed_message="Step '$stepF_name' completed successfully"
+    local stepF_failed_message="The execution of '$stepF_name' failed."
+
+    stepF() {
+        echo "$stepF_run_msg"
+        return $_failure
+    }
+
+    # Flow definitions with failure step
+    local flow_resume_on_failure_message="Do you want to continue the flow despite the error?"
+    local flow_aborted_on_failure_message="Aborting flow execution due to error"
+
+    declare -A flow_with_fail=(
+        [stepF]="$stepF_name"
+        [stepB]="$stepB_name"
+    )
+
+    # Failure input keys
+    local proceed='y'
+    local abort='n'
+
+    ## FAILURE: Proceed on F and Continue B
+    local positive_items=(
+        "$stepF_head_msg"
+        "$stepF_executing_message"
+        "$stepF_run_msg"
+        "$stepF_failed_message"
+        "$flow_resume_on_failure_message"
+        "$stepB_head_msg"
+        "$stepB_executing_message"
+        "$stepB_run_msg"
+        "$stepB_completed_message"
+        "$flow_completed_message"
+    )
+    local negative_items=(
+        "$stepF_skipping_message"
+        "$stepF_completed_message"
+        "$flow_aborted_on_failure_message"
+    )
+    _flow_test_helper "Failure and Proceed" "$continue$proceed$continue" \
+        "$(regex_build_all "${positive_items[@]}")" \
+        "$(regex_build_none "${negative_items[@]}")" \
+        $_success flow_with_fail
+
+    ## FAILURE: Abort on F
+    local positive_items=(
+        "$stepF_head_msg"
+        "$stepF_executing_message"
+        "$stepF_run_msg"
+        "$stepF_failed_message"
+        "$flow_resume_on_failure_message"
+        "$flow_aborted_on_failure_message"
+    )
+    local negative_items=(
+        "$stepF_skipping_message"
+        "$stepF_completed_message"
+        "$stepB_head_msg"
+        "$stepB_executing_message"
+        "$stepB_run_msg"
+        "$stepB_completed_message"
+        "$flow_completed_message"
+    )
+    _flow_test_helper "Failure and Abort" "$continue$abort" \
+        "$(regex_build_all "${positive_items[@]}")" \
+        "$(regex_build_none "${negative_items[@]}")" \
+        $_failure flow_with_fail
 }
 
 fixtures=(
