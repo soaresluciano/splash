@@ -429,8 +429,203 @@ test_network_operations() {
 }
 
 test_flow() {
-    echo
-    # flow_run
+    # Helper function for flow tests
+    _flow_test_helper() {
+        local test_name="$1"
+        local input_seq="$2"
+        local positive_regex="$3"
+        local negative_regex="$4"
+        test_status_output_match "$_success" "$positive_regex" "flow_run: $test_name positive" run_autoinput "$input_seq" flow_run flow
+        test_status_output_match "$_success" "$negative_regex" "flow_run: $test_name negative" run_autoinput "$input_seq" flow_run flow
+    }
+
+    # flow input keys
+    local continue=1
+    local skip=2
+    local quit=3
+
+    # STEP A definitions
+    local stepA_head_msg="\[1/2] STEP: Step A"
+    local stepA_run_msg="Execution of Step A"
+    local stepA_executing_message="Executing STEP: Step A"
+    local stepA_skipping_message="Skipping STEP: Step A"
+    local stepA_completed_message="Step 'Step A' completed successfully"
+
+    stepA() {
+        echo "$stepA_run_msg"
+        return $_success
+    }
+
+    # STEP B definitions
+    local stepB_head_msg="\[2/2] STEP: Step B"
+    local stepB_run_msg="Execution of Step B"
+    local stepB_executing_message="Executing STEP: Step B"
+    local stepB_skipping_message="Skipping STEP: Step B"
+    local stepB_completed_message="Step 'Step B' completed successfully"
+
+    stepB() {
+        echo "$stepB_run_msg"
+        return $_success
+    }
+
+    # FLOW definitions
+    local flow_completed_message="Flow execution completed"
+    local flow_aborted_message="Aborting the flow execution"
+
+    declare -A flow=(
+        [stepA]="Step A"
+        [stepB]="Step B"
+    )
+
+    ## BASIC CUI
+    local basic_cui_items=(
+        "Starting flow execution"
+        "Please select an option:"
+        "Continue"
+        "Skip"
+        "Quit"
+    )
+    test_status_output_match "$_success" "$(regex_build_all "${basic_cui_items[@]}")" "flow_run: basic cui" run_autoinput "$quit" flow_run flow
+
+    ## CONTINUE : Continue A, Continue B
+    local continue_positive_items=(
+        "$stepA_head_msg"
+        "$stepA_executing_message"
+        "$stepA_run_msg"
+        "$stepA_completed_message"
+        "$stepB_head_msg"
+        "$stepB_executing_message"
+        "$stepB_run_msg"
+        "$stepB_completed_message"
+        "$flow_completed_message"
+    )
+    local continue_negative_items=(
+        "$stepA_skipping_message"
+        "$stepB_skipping_message"
+        "$flow_aborted_message"
+    )    
+    _flow_test_helper "Continue A, Continue B" "$continue$continue" \
+        "$(regex_build_all "${continue_positive_items[@]}")" \
+        "$(regex_build_none "${continue_negative_items[@]}")"
+
+    ## SKIP : Continue A, Skip B
+    local skip_positive_items=(
+        "$stepA_head_msg"
+        "$stepA_executing_message"
+        "$stepA_run_msg"
+        "$stepA_completed_message"
+        "$stepB_head_msg"
+        "$stepB_skipping_message"
+        "$flow_completed_message"
+    )
+    local skip_negative_items=(
+        "$stepB_executing_message"
+        "$stepB_run_msg"
+        "$stepB_completed_message"
+    )
+    _flow_test_helper "Continue A, Skip B" "$continue$skip" \
+        "$(regex_build_all "${skip_positive_items[@]}")" \
+        "$(regex_build_none "${skip_negative_items[@]}")"
+
+    ## SKIP : Skip A, Continue B
+    local skip_positive_items=(
+        "$stepA_head_msg"
+        "$stepA_skipping_message"
+        "$stepB_head_msg"
+        "$stepB_executing_message"
+        "$stepB_run_msg"
+        "$stepB_completed_message"
+        "$flow_completed_message"
+    )
+    local skip_negative_items=(
+        "$stepA_executing_message"
+        "$stepA_run_msg"
+        "$stepA_completed_message"
+    )
+    _flow_test_helper "Skip A, Continue B" "$skip$continue" \
+        "$(regex_build_all "${skip_positive_items[@]}")" \
+        "$(regex_build_none "${skip_negative_items[@]}")"
+
+    ## SKIP : Skip A, Skip B
+    local skip_positive_items=(
+        "$stepA_head_msg"
+        "$stepA_skipping_message"
+        "$stepB_head_msg"
+        "$stepB_skipping_message"
+        "$flow_completed_message"
+    )
+    local skip_negative_items=(
+        "$stepA_executing_message"
+        "$stepA_run_msg"
+        "$stepA_completed_message"
+        "$stepB_executing_message"
+        "$stepB_run_msg"
+        "$stepB_completed_message"
+    )
+    _flow_test_helper "Skip A, Skip B" "$skip$skip" \
+        "$(regex_build_all "${skip_positive_items[@]}")" \
+        "$(regex_build_none "${skip_negative_items[@]}")"
+
+    ## QUIT : Continue A, Quit on B
+    local quit_positive_items=(
+        "$stepA_head_msg"
+        "$stepA_executing_message"
+        "$stepA_run_msg"
+        "$stepA_completed_message"
+        "$stepB_head_msg"
+        "$flow_aborted_message"
+    )
+    local quit_negative_items=(
+        "$stepB_skipping_message"
+        "$stepB_executing_message"
+        "$stepB_run_msg"
+        "$stepB_completed_message"
+        "$flow_completed_message"
+    )
+    _flow_test_helper "Continue A, Quit on B" "$continue$quit" \
+        "$(regex_build_all "${quit_positive_items[@]}")" \
+        "$(regex_build_none "${quit_negative_items[@]}")"
+
+    ## QUIT : Skip A, Quit on B
+    local quit_positive_items=(
+        "$stepA_head_msg"
+        "$stepA_skipping_message"
+        "$stepB_head_msg"
+        "$flow_aborted_message"
+    )
+    local quit_negative_items=(
+        "$stepA_executing_message"
+        "$stepA_run_msg"
+        "$stepA_completed_message"
+        "$stepB_skipping_message"
+        "$stepB_executing_message"
+        "$stepB_run_msg"
+        "$stepB_completed_message"
+        "$flow_completed_message"
+    )
+    _flow_test_helper "Skip A, Quit on B" "$skip$quit" \
+        "$(regex_build_all "${quit_positive_items[@]}")" \
+        "$(regex_build_none "${quit_negative_items[@]}")"
+
+    ## QUIT : Quit on A
+    local quit_positive_items=(
+        "$stepA_head_msg"
+        "$flow_aborted_message"
+    )
+    local quit_negative_items=(
+        "$stepA_executing_message"
+        "$stepA_run_msg"
+        "$stepA_completed_message"
+        "$stepB_head_msg"
+        "$stepB_skipping_message"
+        "$stepB_executing_message"
+        "$stepB_run_msg"
+        "$stepB_completed_message"
+        "$flow_completed_message"
+    )
+    _flow_test_helper "Quit on A" "$quit" \
+        "$(regex_build_all "${quit_positive_items[@]}")" \
+        "$(regex_build_none "${quit_negative_items[@]}")"
 }
 
 fixtures=(
