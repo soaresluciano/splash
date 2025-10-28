@@ -16,6 +16,12 @@ _stub_reader() {
     return "$result"
 }
 
+_stub_autoinput() {
+    local result="$1"
+    run_autoinput "$_target" _stub_reader "$result"
+    return $?
+}
+
 test_helpers_sanity_check() {
     _sanity_helper()
     {
@@ -38,8 +44,8 @@ test_helpers_sanity_check() {
 
     _sanity_helper "echo" "$_success" _stub_echo "$_success"
     _sanity_helper "echo" "$_failure" _stub_echo "$_failure"
-    _sanity_helper "reader" "$_success" run_autoinput "$_target" _stub_reader "$_success"
-    _sanity_helper "reader" "$_failure" run_autoinput "$_target" _stub_reader "$_failure"
+    _sanity_helper "autoinput" "$_success" _stub_autoinput "$_success"
+    _sanity_helper "autoinput" "$_failure" _stub_autoinput "$_failure"
 }
 
 test_regex() {
@@ -96,6 +102,153 @@ test_regex() {
     test_status_is "$_success" "regex_build_any multi-line, pass 2" regex_match "$multi_line_str" "$(regex_build_any "cat" "ipsum")"
     test_status_is "$_success" "regex_build_any multi-line, pass 3" regex_match "$multi_line_str" "$(regex_build_any "ipsum" "elit")"
     test_status_is "$_failure" "regex_build_any multi-line, fail" regex_match "$multi_line_str" "$(regex_build_any "dog" "cat")"
+}
+
+test_comparisons() {
+    # is_empty
+    test_status_is "$_success" "is_empty: empty" is_empty ''
+    test_status_is "$_failure" "is_empty: non-empty (should fail)" is_empty 'data'
+
+    # is_not_empty
+    test_status_is "$_success" "is_not_empty: non-empty" is_not_empty 'data'
+    test_status_is "$_failure" "is_not_empty: empty (should fail)" is_not_empty ''
+
+    # are_equal_str
+    test_status_is "$_success" "are_equal_str: equal" are_equal_str 'data' 'data'
+    test_status_is "$_failure" "are_equal_str: different (should fail)" are_equal_str 'data' 'other'
+
+    # are_equal_str_ignore_case
+    test_status_is "$_success" "are_equal_str_ignore_case: same case" are_equal_str_ignore_case 'Data' 'Data'
+    test_status_is "$_success" "are_equal_str_ignore_case: different case" are_equal_str_ignore_case 'Data' 'data'
+    test_status_is "$_failure" "are_equal_str_ignore_case: different (should fail)" are_equal_str_ignore_case 'Data' 'other'
+
+    # are_equal_num
+    test_status_is "$_success" "are_equal_num: equal" are_equal_num 42 42
+    test_status_is "$_failure" "are_equal_num: different (should fail)" are_equal_num 1 0
+
+    # is_greater_than
+    test_status_is "$_success" "is_greater_than: greater" is_greater_than 2 1
+    test_status_is "$_failure" "is_greater_than: lesser (should fail)" is_greater_than 1 2
+
+    # is_greater_than_or_equal
+    test_status_is "$_success" "is_greater_than_or_equal: greater" is_greater_than_or_equal 2 1
+    test_status_is "$_success" "is_greater_than_or_equal: equal" is_greater_than_or_equal 2 2
+    test_status_is "$_failure" "is_greater_than_or_equal: lesser (should fail)" is_greater_than_or_equal 1 2
+
+    # is_less_than
+    test_status_is "$_success" "is_less_than: lesser" is_less_than 1 2
+    test_status_is "$_failure" "is_less_than: greater (should fail)" is_less_than 2 1
+
+    # is_less_than_or_equal
+    test_status_is "$_success" "is_less_than_or_equal: lesser" is_less_than_or_equal 1 2
+    test_status_is "$_success" "is_less_than_or_equal: equal" is_less_than_or_equal 2 2
+    test_status_is "$_failure" "is_less_than_or_equal: greater (should fail)" is_less_than_or_equal 3 2
+
+    # is_integer
+    test_status_is "$_success" "is_integer: integer" is_integer 42
+    test_status_is "$_success" "is_integer: integer str" is_integer "24"
+    test_status_is "$_failure" "is_integer: float (should fail)" is_integer 3.14
+    test_status_is "$_failure" "is_integer: not a number (should fail)" is_integer 'data'
+
+    # is_success
+    test_status_is "$_success" "is_success: success" is_success $_success
+    test_status_is "$_success" "is_success: 0 string" is_success "0"
+    test_status_is "$_failure" "is_success: _failure (should fail)" is_success $_failure
+    test_status_is "$_failure" "is_success: 1 string (should fail)" is_success "1"
+
+    # is_failure
+    test_status_is "$_success" "is_failure: failure" is_failure $_failure
+    test_status_is "$_success" "is_failure: 1 string" is_failure "1"
+    test_status_is "$_failure" "is_failure: success (should fail)" is_failure $_success
+    test_status_is "$_failure" "is_failure: 0 string (should fail)" is_failure "0"
+
+    # contains_str
+    test_status_is "$_success" "contains_str: contains" contains_str "Hello, world!" "world"
+    test_status_is "$_failure" "contains_str: does not contain (should fail)" contains_str "Hello, world!" "universe"
+    test_status_is "$_failure" "contains_str: empty does not contain (should fail)" contains_str "" "world"
+}
+
+test_assertions() {
+    # assert_is_empty
+    test_status_is "$_success" "assert_is_empty pass" assert_is_empty ''
+    test_status_output_match "$_failure" "Assertion failed: Expected empty value, but got non-empty." "assert_is_empty fails" assert_is_empty 'data'
+    test_status_output_match "$_failure" "$_target" "assert_is_empty custom error" assert_is_empty 'data' "$_target"
+
+    # assert_is_not_empty
+    test_status_is "$_success" "assert_is_not_empty pass" assert_is_not_empty 'data'
+    test_status_output_match "$_failure" "Assertion failed: Expected non-empty value, but got empty." "assert_is_not_empty fails" assert_is_not_empty ''
+    test_status_output_match "$_failure" "$_target" "assert_is_not_empty custom error" assert_is_not_empty '' "$_target"
+
+    # assert_are_equal_str
+    test_status_is "$_success" "assert_are_equal_str pass" assert_are_equal_str 'data' 'data'
+    test_status_output_match "$_failure" "Assertion failed: Expected 'data' to equal 'other'." "assert_are_equal_str fails" assert_are_equal_str 'data' 'other'
+    test_status_output_match "$_failure" "$_target" "assert_are_equal_str custom error" assert_are_equal_str 'data' 'other' "$_target"
+
+    # assert_are_equal_str_ignore_case
+    test_status_is "$_success" "assert_are_equal_str_ignore_case pass 1" assert_are_equal_str_ignore_case 'data' 'data'
+    test_status_is "$_success" "assert_are_equal_str_ignore_case pass 2" assert_are_equal_str_ignore_case 'Data' 'data'
+    test_status_output_match "$_failure" "Assertion failed: Expected 'Data' to equal 'other'." "assert_are_equal_str_ignore_case fails" assert_are_equal_str_ignore_case 'Data' 'other'
+    test_status_output_match "$_failure" "$_target" "assert_are_equal_str_ignore_case custom error" assert_are_equal_str_ignore_case 'Data' 'other' "$_target"
+
+    # assert_are_equal_num
+    test_status_is "$_success" "assert_are_equal_num pass" assert_are_equal_num 42 42
+    test_status_output_match "$_failure" "Assertion failed: Expected '1' to equal '0'." "assert_are_equal_num fails" assert_are_equal_num 1 0
+    test_status_output_match "$_failure" "$_target" "assert_are_equal_num custom error" assert_are_equal_num 1 0 "$_target"
+
+    # assert_is_greater_than
+    test_status_is "$_success" "assert_is_greater_than pass" assert_is_greater_than 2 1
+    test_status_output_match "$_failure" "Assertion failed: Expected '0' to be greater than '1'." "assert_is_greater_than fails" assert_is_greater_than 0 1
+    test_status_output_match "$_failure" "$_target" "assert_is_greater_than custom error" assert_is_greater_than 0 1 "$_target"
+
+    # assert_is_greater_than_or_equal
+    test_status_is "$_success" "assert_is_greater_than_or_equal pass 1" assert_is_greater_than_or_equal 2 1
+    test_status_is "$_success" "assert_is_greater_than_or_equal pass 2" assert_is_greater_than_or_equal 2 2
+    test_status_output_match "$_failure" "Assertion failed: Expected '0' to be greater than or equal to '1'." "assert_is_greater_than_or_equal fails" assert_is_greater_than_or_equal 0 1
+    test_status_output_match "$_failure" "$_target" "assert_is_greater_than_or_equal custom error" assert_is_greater_than_or_equal 0 1 "$_target"
+
+    # assert_is_less_than
+    test_status_is "$_success" "assert_is_less_than pass" assert_is_less_than 1 2
+    test_status_output_match "$_failure" "Assertion failed: Expected '1' to be less than '0'." "assert_is_less_than fails" assert_is_less_than 1 0
+    test_status_output_match "$_failure" "$_target" "assert_is_less_than custom error" assert_is_less_than 1 0 "$_target"
+
+    # assert_is_less_than_or_equal
+    test_status_is "$_success" "assert_is_less_than_or_equal pass 1" assert_is_less_than_or_equal 1 2
+    test_status_is "$_success" "assert_is_less_than_or_equal pass 2" assert_is_less_than_or_equal 2 2
+    test_status_output_match "$_failure" "Assertion failed: Expected '1' to be less than or equal to '0'." "assert_is_less_than_or_equal fails" assert_is_less_than_or_equal 1 0
+    test_status_output_match "$_failure" "$_target" "assert_is_less_than_or_equal custom error" assert_is_less_than_or_equal 1 0 "$_target"
+}
+
+test_runners() {
+    # sanity check for stub functions
+    test_status_output_match "$_success" "$_target" "_stub_echo success" _stub_echo "$_success"
+    test_status_output_match "$_failure" "$_target" "_stub_echo failure" _stub_echo "$_failure"
+    test_status_output_match "$_success" "$_target" "_stub_autoinput success" _stub_autoinput "$_success"
+    test_status_output_match "$_failure" "$_target" "_stub_autoinput failure" _stub_autoinput "$_failure"
+
+    # run_cmd_capture
+    run_cmd_capture result_0 _stub_echo "$_success"
+    local cmd_status_0=${result_0[status]}
+    local cmd_output_0=${result_0[output]}
+    test_status_is "$_success" "0 - run_cmd_capture status" is_success $cmd_status_0
+    test_status_is "$_success" "0 - run_cmd_capture output" are_equal_str "$cmd_output_0" "$_target"
+
+    run_cmd_capture result_1 _stub_echo "$_failure"
+    local cmd_status_1=${result_1[status]}
+    local cmd_output_1=${result_1[output]}
+    test_status_is "$_success" "1 - run_cmd_capture status" is_failure $cmd_status_1
+    test_status_is "$_success" "1 - run_cmd_capture output" are_equal_str "$cmd_output_1" "$_target"
+
+    # run_silent
+    test_status_output_match "$_success" "$(regex_build_not "$_target")" "run_silent with success" run_silent _stub_echo $_success
+    test_status_output_match "$_failure" "$(regex_build_not "$_target")" "run_silent with failure" run_silent _stub_echo $_failure
+
+    # run_autoinput
+    test_status_output_match "$_success" "$_target" "run_autoinput with success" run_autoinput "$_target" _stub_echo $_success
+    test_status_output_match "$_failure" "$_target" "run_autoinput with failure" run_autoinput "$_target" _stub_echo $_failure
+
+    # run_autoinput_silent
+    test_status_output_match "$_success" "$(regex_build_not "$_target")" "run_autoinput_silent with success" run_autoinput_silent "$_target" _stub_echo $_success
+    test_status_output_match "$_failure" "$(regex_build_not "$_target")" "run_autoinput_silent with failure" run_autoinput_silent "$_target" _stub_echo $_failure
 }
 
 test_ui_messages() {
@@ -227,153 +380,6 @@ test_validations() {
     test_status_output_match "$_failure" "Missing dependencies: bad_dep1 bad_dep2" "validate_dependencies: 1+ missing dependency" validate_dependencies "bad_dep1" "bad_dep2"
 }
 
-test_comparisons() {
-    # is_empty
-    test_status_is "$_success" "is_empty: empty" is_empty ''
-    test_status_is "$_failure" "is_empty: non-empty (should fail)" is_empty 'data'
-
-    # is_not_empty
-    test_status_is "$_success" "is_not_empty: non-empty" is_not_empty 'data'
-    test_status_is "$_failure" "is_not_empty: empty (should fail)" is_not_empty ''
-
-    # are_equal_str
-    test_status_is "$_success" "are_equal_str: equal" are_equal_str 'data' 'data'
-    test_status_is "$_failure" "are_equal_str: different (should fail)" are_equal_str 'data' 'other'
-
-    # are_equal_str_ignore_case
-    test_status_is "$_success" "are_equal_str_ignore_case: same case" are_equal_str_ignore_case 'Data' 'Data'
-    test_status_is "$_success" "are_equal_str_ignore_case: different case" are_equal_str_ignore_case 'Data' 'data'
-    test_status_is "$_failure" "are_equal_str_ignore_case: different (should fail)" are_equal_str_ignore_case 'Data' 'other'
-
-    # are_equal_num
-    test_status_is "$_success" "are_equal_num: equal" are_equal_num 42 42
-    test_status_is "$_failure" "are_equal_num: different (should fail)" are_equal_num 1 0
-
-    # is_greater_than
-    test_status_is "$_success" "is_greater_than: greater" is_greater_than 2 1
-    test_status_is "$_failure" "is_greater_than: lesser (should fail)" is_greater_than 1 2
-
-    # is_greater_than_or_equal
-    test_status_is "$_success" "is_greater_than_or_equal: greater" is_greater_than_or_equal 2 1
-    test_status_is "$_success" "is_greater_than_or_equal: equal" is_greater_than_or_equal 2 2
-    test_status_is "$_failure" "is_greater_than_or_equal: lesser (should fail)" is_greater_than_or_equal 1 2
-
-    # is_less_than
-    test_status_is "$_success" "is_less_than: lesser" is_less_than 1 2
-    test_status_is "$_failure" "is_less_than: greater (should fail)" is_less_than 2 1
-
-    # is_less_than_or_equal
-    test_status_is "$_success" "is_less_than_or_equal: lesser" is_less_than_or_equal 1 2
-    test_status_is "$_success" "is_less_than_or_equal: equal" is_less_than_or_equal 2 2
-    test_status_is "$_failure" "is_less_than_or_equal: greater (should fail)" is_less_than_or_equal 3 2
-
-    # is_integer
-    test_status_is "$_success" "is_integer: integer" is_integer 42
-    test_status_is "$_success" "is_integer: integer str" is_integer "24"
-    test_status_is "$_failure" "is_integer: float (should fail)" is_integer 3.14
-    test_status_is "$_failure" "is_integer: not a number (should fail)" is_integer 'data'
-
-    # is_success
-    test_status_is "$_success" "is_success: success" is_success $_success
-    test_status_is "$_success" "is_success: 0 string" is_success "0"
-    test_status_is "$_failure" "is_success: _failure (should fail)" is_success $_failure
-    test_status_is "$_failure" "is_success: 1 string (should fail)" is_success "1"
-
-    # is_failure
-    test_status_is "$_success" "is_failure: failure" is_failure $_failure
-    test_status_is "$_success" "is_failure: 1 string" is_failure "1"
-    test_status_is "$_failure" "is_failure: success (should fail)" is_failure $_success
-    test_status_is "$_failure" "is_failure: 0 string (should fail)" is_failure "0"
-
-    # contains_str
-    test_status_is "$_success" "contains_str: contains" contains_str "Hello, world!" "world"
-    test_status_is "$_failure" "contains_str: does not contain (should fail)" contains_str "Hello, world!" "universe"
-    test_status_is "$_failure" "contains_str: empty does not contain (should fail)" contains_str "" "world"
-}
-
-test_assertions() {
-    # assert_is_empty
-    test_status_is "$_success" "assert_is_empty pass" assert_is_empty ''
-    test_status_output_match "$_failure" "Assertion failed: Expected empty value, but got non-empty." "assert_is_empty fails" assert_is_empty 'data'
-    test_status_output_match "$_failure" "$_target" "assert_is_empty custom error" assert_is_empty 'data' "$_target"
-
-    # assert_is_not_empty
-    test_status_is "$_success" "assert_is_not_empty pass" assert_is_not_empty 'data'
-    test_status_output_match "$_failure" "Assertion failed: Expected non-empty value, but got empty." "assert_is_not_empty fails" assert_is_not_empty ''
-    test_status_output_match "$_failure" "$_target" "assert_is_not_empty custom error" assert_is_not_empty '' "$_target"
-
-    # assert_are_equal_str
-    test_status_is "$_success" "assert_are_equal_str pass" assert_are_equal_str 'data' 'data'
-    test_status_output_match "$_failure" "Assertion failed: Expected 'data' to equal 'other'." "assert_are_equal_str fails" assert_are_equal_str 'data' 'other'
-    test_status_output_match "$_failure" "$_target" "assert_are_equal_str custom error" assert_are_equal_str 'data' 'other' "$_target"
-
-    # assert_are_equal_str_ignore_case
-    test_status_is "$_success" "assert_are_equal_str_ignore_case pass 1" assert_are_equal_str_ignore_case 'data' 'data'
-    test_status_is "$_success" "assert_are_equal_str_ignore_case pass 2" assert_are_equal_str_ignore_case 'Data' 'data'
-    test_status_output_match "$_failure" "Assertion failed: Expected 'Data' to equal 'other'." "assert_are_equal_str_ignore_case fails" assert_are_equal_str_ignore_case 'Data' 'other'
-    test_status_output_match "$_failure" "$_target" "assert_are_equal_str_ignore_case custom error" assert_are_equal_str_ignore_case 'Data' 'other' "$_target"
-
-    # assert_are_equal_num
-    test_status_is "$_success" "assert_are_equal_num pass" assert_are_equal_num 42 42
-    test_status_output_match "$_failure" "Assertion failed: Expected '1' to equal '0'." "assert_are_equal_num fails" assert_are_equal_num 1 0
-    test_status_output_match "$_failure" "$_target" "assert_are_equal_num custom error" assert_are_equal_num 1 0 "$_target"
-
-    # assert_is_greater_than
-    test_status_is "$_success" "assert_is_greater_than pass" assert_is_greater_than 2 1
-    test_status_output_match "$_failure" "Assertion failed: Expected '0' to be greater than '1'." "assert_is_greater_than fails" assert_is_greater_than 0 1
-    test_status_output_match "$_failure" "$_target" "assert_is_greater_than custom error" assert_is_greater_than 0 1 "$_target"
-
-    # assert_is_greater_than_or_equal
-    test_status_is "$_success" "assert_is_greater_than_or_equal pass 1" assert_is_greater_than_or_equal 2 1
-    test_status_is "$_success" "assert_is_greater_than_or_equal pass 2" assert_is_greater_than_or_equal 2 2
-    test_status_output_match "$_failure" "Assertion failed: Expected '0' to be greater than or equal to '1'." "assert_is_greater_than_or_equal fails" assert_is_greater_than_or_equal 0 1
-    test_status_output_match "$_failure" "$_target" "assert_is_greater_than_or_equal custom error" assert_is_greater_than_or_equal 0 1 "$_target"
-
-    # assert_is_less_than
-    test_status_is "$_success" "assert_is_less_than pass" assert_is_less_than 1 2
-    test_status_output_match "$_failure" "Assertion failed: Expected '1' to be less than '0'." "assert_is_less_than fails" assert_is_less_than 1 0
-    test_status_output_match "$_failure" "$_target" "assert_is_less_than custom error" assert_is_less_than 1 0 "$_target"
-
-    # assert_is_less_than_or_equal
-    test_status_is "$_success" "assert_is_less_than_or_equal pass 1" assert_is_less_than_or_equal 1 2
-    test_status_is "$_success" "assert_is_less_than_or_equal pass 2" assert_is_less_than_or_equal 2 2
-    test_status_output_match "$_failure" "Assertion failed: Expected '1' to be less than or equal to '0'." "assert_is_less_than_or_equal fails" assert_is_less_than_or_equal 1 0
-    test_status_output_match "$_failure" "$_target" "assert_is_less_than_or_equal custom error" assert_is_less_than_or_equal 1 0 "$_target"
-}
-
-test_runners() {
-    # sanity check for stub functions
-    test_status_output_match "$_success" "$_target" "_stub_echo success" _stub_echo "$_success"
-    test_status_output_match "$_failure" "$_target" "_stub_echo failure" _stub_echo "$_failure"
-    test_status_output_match "$_success" "$_target" "_stub_reader success" run_autoinput "$_target" _stub_reader "$_success"
-    test_status_output_match "$_failure" "$_target" "_stub_reader failure" run_autoinput "$_target" _stub_reader "$_failure"
-
-    # run_cmd_capture
-    run_cmd_capture result_0 _stub_echo "$_success"
-    local cmd_status_0=${result_0[status]}
-    local cmd_output_0=${result_0[output]}
-    test_status_is "$_success" "0 - run_cmd_capture status" is_success $cmd_status_0
-    test_status_is "$_success" "0 - run_cmd_capture output" are_equal_str "$cmd_output_0" "$_target"
-
-    run_cmd_capture result_1 _stub_echo "$_failure"
-    local cmd_status_1=${result_1[status]}
-    local cmd_output_1=${result_1[output]}
-    test_status_is "$_success" "1 - run_cmd_capture status" is_failure $cmd_status_1
-    test_status_is "$_success" "1 - run_cmd_capture output" are_equal_str "$cmd_output_1" "$_target"
-
-    # run_silent
-    test_status_output_match "$_success" "$(regex_build_not "$_target")" "run_silent with success" run_silent _stub_echo $_success
-    test_status_output_match "$_failure" "$(regex_build_not "$_target")" "run_silent with failure" run_silent _stub_echo $_failure
-
-    # run_autoinput
-    test_status_output_match "$_success" "$_target" "run_autoinput with success" run_autoinput "$_target" _stub_echo $_success
-    test_status_output_match "$_failure" "$_target" "run_autoinput with failure" run_autoinput "$_target" _stub_echo $_failure
-
-    # run_autoinput_silent
-    test_status_output_match "$_success" "$(regex_build_not "$_target")" "run_autoinput_silent with success" run_autoinput_silent "$_target" _stub_echo $_success
-    test_status_output_match "$_failure" "$(regex_build_not "$_target")" "run_autoinput_silent with failure" run_autoinput_silent "$_target" _stub_echo $_failure
-}
-
 test_file_operations() {
     echo
 
@@ -429,14 +435,14 @@ test_flow() {
 
 fixtures=(
     test_helpers_sanity_check
+    test_comparisons
+    test_assertions
+    test_regex
     test_runners
     test_ui_messages
     test_user_interactions
     test_prompt_menu
-    test_comparisons
-    test_assertions
     test_validations
-    test_regex
     test_file_operations
     test_system_operations
     test_network_operations
