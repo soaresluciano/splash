@@ -3,6 +3,45 @@ source ../spla.sh
 
 _target="TEST-TARGET-STRING"
 
+_stub_echo() {
+    local result="$1"
+    echo "$_target"
+    return "$result"
+}
+
+_stub_reader() {
+    local result="$1"
+    read -r input
+    echo "$input"
+    return "$result"
+}
+
+test_helpers_sanity_check() {
+    _sanity_helper()
+    {
+        local name="$1"
+        local expected_status="$2"
+        shift 2
+
+        test_run actual_output "$expected_status" "$@"
+        local testrun_result=$?
+        local test_result
+        if is_success $testrun_result && are_equal_str "$_target" "$actual_output"; then
+            test_result="$_success"
+        else
+            test_result="$_failure"
+        fi
+        local test_name="Sanity check - $name status $expected_status"
+        show_test_result "$test_name" "$test_result"
+        _test_counter_increase "$test_result"
+    }
+
+    _sanity_helper "echo" "$_success" _stub_echo "$_success"
+    _sanity_helper "echo" "$_failure" _stub_echo "$_failure"
+    _sanity_helper "reader" "$_success" run_autoinput "$_target" _stub_reader "$_success"
+    _sanity_helper "reader" "$_failure" run_autoinput "$_target" _stub_reader "$_failure"
+}
+
 test_regex() {
     local single_line_str="The quick brown fox"
     local multi_line_str=$'Lorem ipsum dolor sit amet\nconsectetur adipiscing elit'
@@ -302,25 +341,7 @@ test_assertions() {
     test_status_output_match "$_failure" "$_target" "assert_is_less_than_or_equal custom error" assert_is_less_than_or_equal 1 0 "$_target"
 }
 
-test_helpers_sanity_check() {
-    echo
-    # test_run
-}
-
 test_runners() {
-    _stub_echo() {
-        local result="$1"
-        echo "$_target"
-        return "$result"
-    }
-
-    _stub_reader() {
-        local result="$1"
-        read -r input
-        echo "$input"
-        return "$result"
-    }
-
     # sanity check for stub functions
     test_status_output_match "$_success" "$_target" "_stub_echo success" _stub_echo "$_success"
     test_status_output_match "$_failure" "$_target" "_stub_echo failure" _stub_echo "$_failure"

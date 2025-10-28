@@ -1496,7 +1496,7 @@ test_run() {
 
     local actual_status=$_failure
     is_success $cmd_status && actual_status=$_success
-    
+
     local test_result=$_failure
     are_equal_str "$expected_status" "$actual_status" && test_result=$_success
 
