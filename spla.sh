@@ -137,43 +137,43 @@ show_title() {
 # Shows a process or section header
 # Usage: show_header "Processing Data"
 show_header() {
-    styled underline magenta "\n🟣 $1\n"
+    styled underline magenta "\n➔ $1\n"
 }
 
 # Shows an error message - for error conditions
 # Usage: show_error "File not found"
 show_error() {
-    styled red "❌ $1"
+    styled red "☒ $1"
 }
 
 # Shows a warning message - for warning conditions
 # Usage: show_warning "This action cannot be undone"
 show_warning() {
-    styled bright_yellow "⚠️ $1"
+    styled bright_yellow "⚠ $1"
 }
 
 # Shows a success message - for successful operations
 # Usage: show_success "Operation completed successfully"
 show_success() {
-    styled green "✅ $1"
+    styled green "☑ $1"
 }
 
 # Shows an informational message - for general info
 # Usage: show_info "Loading configuration file"
 show_info() {
-    styled cyan "ℹ️ $1"
+    styled cyan "🛈 $1"
 }
 
 # Shows a log message - for less critical info
 # Usage: show_log "Connecting to database"
 show_log () {
-    styled bright_black "▪️ $1"
+    styled bright_black "▫ $1"
 }
 
 # Shows a suggestion message - for tips or suggestions
 # Usage: show_suggestion "Consider using --verbose for more details"
 show_suggestion () {
-    styled yellow "💡 $1"
+    styled yellow "★ $1"
 }
 
 # Shows a key: value pair message
@@ -181,7 +181,7 @@ show_suggestion () {
 show_keyvalue () {
     local key="$1"
     local value="$2"
-    echo -e "▫️ $(style cyan) $key${_nc}: $value"
+    echo -e "▪ $(style cyan) $key${_nc}: $value"
 }
 
 # Shows a question with optional answer options
@@ -191,9 +191,9 @@ show_question () {
     local question="$1"
     local options="$2"
     if is_not_empty "$options"; then
-        styled bold bright_blue "❔ $question ($options)"
+        styled bold bright_blue "⯑ $question ($options)"
     else
-        styled bold bright_blue "❔ $question"
+        styled bold bright_blue "⯑ $question"
     fi
 }
 
@@ -203,7 +203,7 @@ show_test_result() {
     local details="${3:-}"
     local fix="${4:-}"
 
-    echo -n "🔍 $description: "
+    echo -ne "  $(style blue)🗲${_nc} $description: "
     if is_success $result; then
         show_success "OK"
     else
@@ -245,7 +245,7 @@ banner_completed() {
 # Displays a message and waits for user input to continue
 # Usage: prompt_continue
 prompt_continue() {
-    styled blue "\n▶️ Press any key to continue...\n"
+    styled blue "\n▶ Press any key to continue...\n"
     echo
     read -r
 }
@@ -350,7 +350,7 @@ file_get_owner() {
     local filename="$1"
     file_exists "$filename" || {
         show_error "File '$filename' owner cannot be determined."
-        return
+        return $_failure
     }
     stat -c "%U" "$filename"
 }
@@ -364,7 +364,7 @@ file_get_permissions() {
     local filename="$1"
     file_exists "$filename" || {
         show_error "File '$filename' permissions cannot be determined."
-        return
+        return $_failure
     }
     stat -c "%a" "$filename"
 }
@@ -415,6 +415,30 @@ path_is_writable() {
         return $_failure
     }
     return $_success
+}
+
+# Checks if a path is a file
+# Returns success if path is a file, failure if it isn't
+# Usage: if path_is_file "myfile.txt"; then ... fi
+# Parameters:
+#   path: Path to check
+path_is_file() {
+    local path="$1"
+    if file_exists "$path" --no-log; then
+        return $_success
+    fi
+    if dir_exists "$path" --no-log; then
+        return $_failure
+    fi
+
+    # Heuristic: inspect the final path component.
+    # - hidden names (start with '.') are treated as not-a-file
+    # - otherwise, if the basename contains a dot (e.g. file.txt) we treat it as a file
+    local name
+    name=$(basename -- "$path")
+    [[ "$name" == .* ]] && return $_failure
+    [[ "$name" == *.* ]] && return $_success
+    return $_failure
 }
 
 # Checks if a file exists
@@ -517,20 +541,24 @@ file_is_writable() {
     fi
 }
 
-# Creates the directory path for a given file or directory if it doesn't exist
-# Usage: path_create "/path/to/myfile.txt" [--sudo]
+# Creates the directory path for a given path if it doesn't exist
 # Usage: path_create "/path/to/mydirectory" [--sudo]
 # Parameters:
-#   path: Full path to the file or directory whose parent directory path should be created
+#   path: Full path to the directory whose parent directory path should be created
 #   --sudo: Use sudo for directory creation - Optional boolean flag
 path_create() {
     _parse_common_params "$@"
     local path="${_PARSED_ARGS[0]}"
-    local dir
-    dir=$(dirname "$path")
-    if ! dir_exists "$dir" --no-log; then
-        ${_SUDO_CMD}mkdir -p "$dir"
-        show_success "Directory path '$dir' created."
+    if path_is_file "$path"; then
+        show_error "The path '$path' is a file. Cannot create directory path for a file."
+        return $_failure
+    fi
+
+    if ! dir_exists "$path" --no-log; then
+        echo "creating directory path '$path'"
+        echo "sudo: ${_SUDO_CMD}"
+        ${_SUDO_CMD}mkdir -p "$path"
+        show_success "Directory path '$path' created."
     fi
 }
 
@@ -544,7 +572,7 @@ file_clear() {
     local filename="${_PARSED_ARGS[0]}"
     _build_args file_is_writable "$filename" || {
         show_error "Cannot clear the file '$filename'."
-        return
+        return $_failure
     }
     ${_SUDO_CMD}truncate -s 0 "$filename"
 }
@@ -561,7 +589,7 @@ file_str_append() {
     local content="${_PARSED_ARGS[1]}"
     _build_args file_is_writable "$filename" || {
         show_error "Cannot append to the file '$filename'."
-        return
+        return $_failure
     }
     echo "$content" | ${_SUDO_CMD}tee -a "$filename"
     show_success "The content was appended to $filename."
@@ -583,7 +611,7 @@ file_str_replace() {
     local pairs=("${_PARSED_ARGS[@]:1}")
     _build_args file_is_writable "$filename" || {
         show_error "Cannot modify the file '$filename'."
-        return
+        return $_failure
     }
     for pair in "${pairs[@]}"; do
         ${_SUDO_CMD}sed -i "s/$pair/" "$filename"
@@ -614,7 +642,7 @@ file_backup() {
     local filename="${_PARSED_ARGS[0]}"
     _build_args file_exists "$filename" --no-log || {
         show_log "Nothing to backup. The file '$filename' does not exist."
-        return
+        return $_failure
     }
     local suffix="bkp-$(date +%Y%m%d%H%M%S)"
     local backup_file="$filename.$suffix"
@@ -635,7 +663,7 @@ file_content_write () {
     local content="${_PARSED_ARGS[1]}"
     _build_args file_is_writable "$filename" || {
         show_error "Nothing was written."
-        return
+        return $_failure
     }
     echo "$content" | ${_SUDO_CMD}tee "$filename" >/dev/null
     _log_is_on && show_success "The content was written to $filename."
@@ -688,7 +716,7 @@ file_from_template () {
     local destination="${_PARSED_ARGS[1]}"
     _build_args file_is_readable "$template"|| {
         show_error "The template file '$template' cannot be used to create files."
-        return
+        return $_failure
     }
     local template_content=$(${_SUDO_CMD}cat "$template")
     _build_args file_create_with_content "$destination" "$template_content"
@@ -704,7 +732,7 @@ file_make_executable() {
     local filename="${_PARSED_ARGS[0]}"
     _build_args file_is_writable "$filename" || {
         show_error "The file '$filename' cannot be made executable."
-        return
+        return $_failure
     }
     ${_SUDO_CMD}chmod +x "$filename"
     show_success "The file '$filename' is now executable."
@@ -722,7 +750,7 @@ file_copy() {
     local dest_file="${_PARSED_ARGS[1]}"
     _build_args file_is_readable "$source_file" || {
         show_error "The file '$source_file' cannot be copied."
-        return
+        return $_failure
     }
     _build_args path_create "$dest_file"
     ${_SUDO_CMD}cp "$source_file" "$dest_file"
@@ -741,7 +769,7 @@ file_move() {
     local dest_file="${_PARSED_ARGS[1]}"
     _build_args file_is_readable "$source_file" || {
         show_error "The file '$source_file' cannot be moved."
-        return
+        return $_failure
     }
     _build_args path_create "$dest_file"
     ${_SUDO_CMD}mv "$source_file" "$dest_file"
@@ -761,7 +789,7 @@ file_overwrite() {
     local dest_file="${_PARSED_ARGS[1]}"
     _build_args file_is_readable "$source_file" || {
         show_error "The file '$source_file' cannot be copied."
-        return
+        return $_failure
     }
     _build_args path_create "$dest_file"
     yes | ${_SUDO_CMD}cp "$source_file" "$dest_file"
@@ -780,12 +808,12 @@ file_delete() {
     local filename="${_PARSED_ARGS[0]}"
     _build_args file_exists "$filename" || {
         show_log "Nothing to delete. The file '$filename' does not exist."
-        return
+        return $_failure
     }
     if _ask_is_on; then
         ! prompt_proceed "You are about to delete the file '$filename'." || {
             show_log "File deletion aborted."
-            return
+            return $_failure
         }
     fi
     ${_SUDO_CMD}rm -f "$filename"
@@ -805,12 +833,12 @@ dir_delete_recursive() {
     local dir="${_PARSED_ARGS[0]}"
     _build_args dir_exists "$dir" || {
         show_log "Nothing to delete. The directory '$dir' does not exist."
-        return
+        return $_failure
     }
     if _ask_is_on; then
         ! prompt_proceed "You are about to delete the directory '$dir' and all its contents recursively." || {
             show_log "Directory deletion aborted."
-            return
+            return $_failure
         }
     fi
     ${_SUDO_CMD}rm -rf "$dir"
@@ -825,7 +853,7 @@ dir_delete_recursive() {
 sudoing () {
     show_warning "Elevated permission is required"
     show_info "Your password is required for elevated privileges"
-    sudo echo "Script is running as $(whoami)"
+    sudo echo "⚿ Script is running as $(whoami)"
 }
 
 # Checks if a command exists in the system
