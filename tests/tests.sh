@@ -61,6 +61,12 @@ test_regex() {
     test_status_is "$_success" "regex_build_empty pass" regex_match "" "$(regex_build_empty)"
     test_status_is "$_failure" "regex_build_empty fail" regex_match "$single_line_str" "$(regex_build_empty)"
 
+    # regex_build_not_empty
+    test_status_is "$_success" "regex_build_not_empty pass" regex_match "$single_line_str" "$(regex_build_not_empty)"
+    test_status_is "$_failure" "regex_build_not_empty fail" regex_match "" "$(regex_build_not_empty)"
+    test_status_is "$_success" "regex_build_not_empty multi-line pass" regex_match "$multi_line_str" "$(regex_build_not_empty)"
+    test_status_is "$_failure" "regex_build_not_empty multi-line fail" regex_match "" "$(regex_build_not_empty)"
+
     # regex_build_not
     test_status_is "$_success" "regex_build_not single-line, pass" regex_match "$single_line_str" "$(regex_build_not "dog")"
     test_status_is "$_failure" "regex_build_not single-line, fail" regex_match "$single_line_str" "$(regex_build_not "fox")"
@@ -555,22 +561,22 @@ test_system_operations() {
 test_system_info() {
     echo
     # system_distro_name
-    ## success and is not empty
+    test_status_output_match "$_success" "$(regex_build_not_empty)" "system_distro_name" system_distro_name
 
     # system_distro_id
-    ## success and is not empty
+    test_status_output_match "$_success" "$(regex_build_not_empty)" "system_distro_id" system_distro_id
 
     # system_kernel_version
-    ## success and is not empty
+    test_status_output_match "$_success" "$(regex_build_not_empty)" "system_kernel_version" system_kernel_version
 
     # system_architecture
-    ## success and is not empty
+    test_status_output_match "$_success" "$(regex_build_not_empty)" "system_architecture" system_architecture
 
     # system_desktop_environment
-    ## success and is not empty
+    test_status_output_match "$_success" "$(regex_build_not_empty)" "system_desktop_environment" system_desktop_environment
 
     # system_display_server
-    ## success and is not empty
+    test_status_output_match "$_success" "$(regex_build_not_empty)" "system_display_server" system_display_server
 }
 
 test_network_operations() {

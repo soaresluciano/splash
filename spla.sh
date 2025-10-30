@@ -1144,6 +1144,13 @@ regex_build_empty() {
     printf "^$"
 }
 
+# Builds a regex pattern that matches non-empty strings
+# Usage: pattern=$(regex_not_empty)
+# Returns: A regex pattern string
+regex_build_not_empty() {
+    printf "^.+$"
+}
+
 # Builds a regex pattern that matches strings not containing the specified substring
 # Usage: pattern=$(regex_not "forbidden")
 # Parameters:
