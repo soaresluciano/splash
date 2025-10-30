@@ -661,12 +661,20 @@ file_content_write () {
     _parse_common_params "$@"
     local filename="${_PARSED_ARGS[0]}"
     local content="${_PARSED_ARGS[1]}"
-    _build_args file_is_writable "$filename" || {
-        show_error "Nothing was written."
-        return $_failure
-    }
+    # _build_args file_is_writable "$filename" || {
+    #     show_error "Nothing was written."
+    #     return $_failure
+    # }
     echo "$content" | ${_SUDO_CMD}tee "$filename" >/dev/null
-    _log_is_on && show_success "The content was written to $filename."
+    local result=$?
+    if is_success $result; then
+        _log_is_on && show_success "The content was written to $filename."
+        return $_success
+    else
+        _log_is_on && show_error "The content could not be written to $filename."
+        return $_failure
+    fi
+    
 }
 
 # Creates a file with specified content or creates an empty file if no content provided
@@ -680,16 +688,26 @@ file_create_with_content () {
     _parse_common_params "$@"
     local filename="${_PARSED_ARGS[0]}"
     local content="${_PARSED_ARGS[1]:-}"
-    if prompt_overwrite "$filename"; then
-        if prompt_yesno "Do you want to backup '$filename' first?"; then
-            file_backup "$filename"
+    if file_exists "$filename" --no-log; then
+        if prompt_overwrite "$filename"; then
+            if prompt_yesno "Do you want to backup '$filename' first?"; then
+                file_backup "$filename"
+            fi
+        else
+            show_log "No changes made. The existing file '$filename' will be used."
+            return $_failure
         fi
-    else
-        show_log "No changes made. The existing file '$filename' will be used."
-        return
     fi
     _build_args file_content_write "$filename" "$content"
-    show_success "The file '$filename' was created."
+    local result=$?
+    if is_success $result; then
+        show_success "The file '$filename' was created."
+        return $_success
+    else
+        show_error "The file '$filename' could not be created."
+        return $_failure
+    fi
+    
 }
 
 # Creates an empty file at the specified path
@@ -742,19 +760,19 @@ file_make_executable() {
 # Usage: file_copy <source_file> <dest_file> [--sudo]
 # Parameters:
 #   source_file: Path to the source file to copy
-#   dest_file: Path to the destination file
+#   destination: Path to the destination file
 #   --sudo: Use sudo for the file operation - Optional boolean flag
 file_copy() {
     _parse_common_params "$@"
     local source_file="${_PARSED_ARGS[0]}"
-    local dest_file="${_PARSED_ARGS[1]}"
+    local destination="${_PARSED_ARGS[1]}"
     _build_args file_is_readable "$source_file" || {
         show_error "The file '$source_file' cannot be copied."
         return $_failure
     }
-    _build_args path_create "$dest_file"
-    ${_SUDO_CMD}cp "$source_file" "$dest_file"
-    show_success "The file was copied to $dest_file."
+    _build_args path_create "$destination"
+    ${_SUDO_CMD}cp "$source_file" "$destination"
+    show_success "The file was copied to $destination."
 }
 
 # Moves a file to a destination, creating the destination path if needed

@@ -1,12 +1,33 @@
 ## TODO
 
+## verify
+- file_str_contains : check implementation
+
+- file_create_with_content: add log and ask
+
 ## bugs
 workflow:
 - steps execute out of order
 - auto run flow (like unit tests)
 
-## ideas
+sudo: tests are using sudo when they should not
 
+prompt_proceed : display is weird
+
+## improve
+### file_copy: 
+    - dest in not writable
+    - error handling
+    - log
+    - file exists
+### file_move:
+    - dest in not writable
+    - error handling
+    - log
+    - file exists
+
+## ideas
+- error handling for all file methods
 - Loading 
 - find a better way to load the lib
 

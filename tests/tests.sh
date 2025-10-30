@@ -1,6 +1,8 @@
 #!/bin/bash
 source ../spla.sh
 
+_path_not_exist="path_not_exist"
+_target_file="data/target_file"
 _target="TEST-TARGET-STRING"
 
 _stub_echo() {
@@ -20,6 +22,17 @@ _stub_autoinput() {
     local result="$1"
     run_autoinput "$_target" _stub_reader "$result"
     return $?
+}
+
+validate_script() {
+    show_header "Validating script syntax..."
+    bash -n ../spla.sh
+    if [ $? -ne 0 ]; then
+        show_error "Script validation failed."
+        exit 1
+    else
+        show_success "Script validation passed."
+    fi
 }
 
 test_helpers_sanity_check() {
@@ -387,12 +400,17 @@ test_validations() {
 }
 
 test_file_operations() {
+    #TODO: use splash tmp dir for tests
+    cleanup() {
+        sudo rm -rf "$tmp_dir"
+    }
+
+    cleanup
+
     local current_user=$(whoami)
 
     local tmp_dir="tmp"
     mkdir -p "$tmp_dir"
-
-    local path_not_exist="path_not_exist"
 
     #file readable/writable by normal user
     local file664="$tmp_dir/file664"
@@ -417,9 +435,9 @@ test_file_operations() {
     sudo chown root:root "$dir700"
 
     # Error Messages
-    local path_not_exist_msg="The path \'$path_not_exist\' does not exist."
-    local file_not_exist_msg="The file \'$path_not_exist\' does not exist."
-    local dir_not_exist_msg="The directory \'$path_not_exist\' does not exist."
+    local path_not_exist_msg="The path \'$_path_not_exist\' does not exist."
+    local file_not_exist_msg="The file \'$_path_not_exist\' does not exist."
+    local dir_not_exist_msg="The directory \'$_path_not_exist\' does not exist."
     _path_not_readable_msg() {
         echo "The path \'$1\' is not readable."
     }
@@ -433,31 +451,31 @@ test_file_operations() {
     touch "$my_file"
     test_status_output_match "$_success" "$current_user" "file_get_owner file exists" file_get_owner "$my_file"
     ## file not exist
-    test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "File \'$path_not_exist\' owner cannot be determined.")" "file_get_owner not exist" file_get_owner "$path_not_exist"
+    test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "File \'$_path_not_exist\' owner cannot be determined.")" "file_get_owner not exist" file_get_owner "$_path_not_exist"
 
     # == file_get_permissions ==
     ## file exist
     test_status_output_match "$_success" "644" "file_get_permissions file exists" file_get_permissions "$file664"
     ## file not exist
-    test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "File \'$path_not_exist\' permissions cannot be determined.")" "file_get_permissions not exist" file_get_permissions "$path_not_exist"
+    test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "File \'$_path_not_exist\' permissions cannot be determined.")" "file_get_permissions not exist" file_get_permissions "$_path_not_exist"
 
     # == path_exists ==
     ## dir exist
     test_status_is "$_success" "path_exists dir exist" path_exists "$dir755"
     ## dir not exist, _log_is_on
-    test_status_output_match "$_failure" "$path_not_exist_msg" "path_exists dir not exist, _log_is_on" path_exists "$path_not_exist"
+    test_status_output_match "$_failure" "$_path_not_exist_msg" "path_exists dir not exist, _log_is_on" path_exists "$_path_not_exist"
     ## dir not exist, _log_is_off
-    test_status_output_match "$_failure" "$(regex_build_empty)" "path_exists dir not exist, _log_is_off" path_exists "$path_not_exist" --no-log
+    test_status_output_match "$_failure" "$(regex_build_empty)" "path_exists dir not exist, _log_is_off" path_exists "$_path_not_exist" --no-log
     ## file exist
     test_status_is "$_success" "path_exists file exist" path_exists "$file664"
     ## file not exist, _log_is_on
-    test_status_output_match "$_failure" "$path_not_exist_msg" "path_exists file not exist, _log_is_on" path_exists "$path_not_exist"
+    test_status_output_match "$_failure" "$_path_not_exist_msg" "path_exists file not exist, _log_is_on" path_exists "$_path_not_exist"
     ## file not exist, _log_is_off
-    test_status_output_match "$_failure" "$(regex_build_empty)" "path_exists file not exist, _log_is_off" path_exists "$path_not_exist" --no-log
+    test_status_output_match "$_failure" "$(regex_build_empty)" "path_exists file not exist, _log_is_off" path_exists "$_path_not_exist" --no-log
 
     # == path_is_readable ==
     ## dir not exist
-    test_status_output_match "$_failure" "$(_path_not_readable_msg $path_not_exist)" "path_is_readable dir not exist, _log_is_on" path_is_readable "$path_not_exist"
+    test_status_output_match "$_failure" "$(_path_not_readable_msg $_path_not_exist)" "path_is_readable dir not exist, _log_is_on" path_is_readable "$_path_not_exist"
     ## dir readable
     test_status_is "$_success" "path_is_readable dir exist" path_is_readable "$dir755"
     ## dir not readable, _log_is_on
@@ -465,7 +483,7 @@ test_file_operations() {
     ## dir not readable, _log_is_off
     test_status_output_match "$_failure" "$(regex_build_empty)" "path_is_readable dir not readable, _log_is_off" path_is_readable "$dir700" --no-log
     ## file not exist
-    test_status_output_match "$_failure" "$(_path_not_readable_msg $path_not_exist)" "path_is_readable file not exist, _log_is_on" path_is_readable "$path_not_exist"
+    test_status_output_match "$_failure" "$(_path_not_readable_msg $_path_not_exist)" "path_is_readable file not exist, _log_is_on" path_is_readable "$_path_not_exist"
     ## file readable
     test_status_is "$_success" "path_is_readable file exist" path_is_readable "$file664"
     ## file not readable, _log_is_on
@@ -475,7 +493,7 @@ test_file_operations() {
 
     # == path_is_writable ==
     ## dir not exist
-    test_status_output_match "$_failure" "$(_path_not_writable_msg $path_not_exist)" "path_is_writable dir not exist, _log_is_on" path_is_writable "$path_not_exist"
+    test_status_output_match "$_failure" "$(_path_not_writable_msg $_path_not_exist)" "path_is_writable dir not exist, _log_is_on" path_is_writable "$_path_not_exist"
     ## dir not writable, _log_is_on
     test_status_output_match "$_failure" "$(_path_not_writable_msg $dir700)" "path_is_writable dir not writable, _log_is_on" path_is_writable "$dir700"
     ## dir not writable, _log_is_off
@@ -483,7 +501,7 @@ test_file_operations() {
     ## dir writable
     test_status_is "$_success" "path_is_writable dir exist" path_is_writable "$dir755"
     ## file not exist
-    test_status_output_match "$_failure" "$(_path_not_writable_msg $path_not_exist)" "path_is_writable file not exist, _log_is_on" path_is_writable "$path_not_exist"
+    test_status_output_match "$_failure" "$(_path_not_writable_msg $_path_not_exist)" "path_is_writable file not exist, _log_is_on" path_is_writable "$_path_not_exist"
     ## file not writable, _log_is_on
     test_status_output_match "$_failure" "$(_path_not_writable_msg $file600)" "path_is_writable file not writable, _log_is_on" path_is_writable "$file600"
     ## file not writable, _log_is_off
@@ -525,17 +543,17 @@ test_file_operations() {
     ## file exist
     test_status_is "$_success" "file_exists file exist" file_exists "$file664"
     ## file not exist, _log_is_on
-    test_status_output_match "$_failure" "$file_not_exist_msg" "file_exists file not exist, _log_is_on" file_exists "$path_not_exist"
+    test_status_output_match "$_failure" "$file_not_exist_msg" "file_exists file not exist, _log_is_on" file_exists "$_path_not_exist"
     ## file not exist, _log_is_off
-    test_status_output_match "$_failure" "$(regex_build_empty)" "file_exists file not exist, _log_is_off" file_exists "$path_not_exist" --no-log
+    test_status_output_match "$_failure" "$(regex_build_empty)" "file_exists file not exist, _log_is_off" file_exists "$_path_not_exist" --no-log
 
     # == dir_exists ==
     ## dir exist
     test_status_is "$_success" "dir_exists dir exist" dir_exists "$dir755"
     ## dir not exist, _log_is_on
-    test_status_output_match "$_failure" "$dir_not_exist_msg" "dir_exists dir not exist, _log_is_on" dir_exists "$path_not_exist"
+    test_status_output_match "$_failure" "$dir_not_exist_msg" "dir_exists dir not exist, _log_is_on" dir_exists "$_path_not_exist"
     ## dir not exist, _log_is_off
-    test_status_output_match "$_failure" "$(regex_build_empty)" "dir_exists dir not exist, _log_is_off" dir_exists "$path_not_exist" --no-log
+    test_status_output_match "$_failure" "$(regex_build_empty)" "dir_exists dir not exist, _log_is_off" dir_exists "$_path_not_exist" --no-log
 
     # == dir_is_readable ==
     ## dir readable
@@ -550,11 +568,11 @@ test_file_operations() {
     test_status_is "$_success" "dir_is_readable dir not readable, _log_is_off, sudo" dir_is_readable "$dir700" --no-log --sudo
     ## dir not exist
     ### _log_is_on
-    test_status_output_match "$_failure" "$dir_not_exist_msg" "dir_is_readable dir not exist, _log_is_on" dir_is_readable "$path_not_exist"
-    test_status_output_match "$_failure" "$dir_not_exist_msg" "dir_is_readable dir not exist, _log_is_on, sudo" dir_is_readable "$path_not_exist" --sudo
+    test_status_output_match "$_failure" "$dir_not_exist_msg" "dir_is_readable dir not exist, _log_is_on" dir_is_readable "$_path_not_exist"
+    test_status_output_match "$_failure" "$dir_not_exist_msg" "dir_is_readable dir not exist, _log_is_on, sudo" dir_is_readable "$_path_not_exist" --sudo
     ### _log_is_off
-    test_status_output_match "$_failure" "$(regex_build_empty)" "dir_is_readable dir not exist, _log_is_off" dir_is_readable "$path_not_exist" --no-log
-    test_status_output_match "$_failure" "$(regex_build_empty)" "dir_is_readable dir not exist, _log_is_off, sudo" dir_is_readable "$path_not_exist" --no-log --sudo
+    test_status_output_match "$_failure" "$(regex_build_empty)" "dir_is_readable dir not exist, _log_is_off" dir_is_readable "$_path_not_exist" --no-log
+    test_status_output_match "$_failure" "$(regex_build_empty)" "dir_is_readable dir not exist, _log_is_off, sudo" dir_is_readable "$_path_not_exist" --no-log --sudo
 
     # == dir_is_writable ==
     ## dir writable
@@ -569,11 +587,11 @@ test_file_operations() {
     test_status_is "$_success" "dir_is_writable dir not writable, _log_is_off, sudo" dir_is_writable "$dir700" --no-log --sudo
     ## dir not exist
     ### _log_is_on
-    test_status_output_match "$_failure" "$dir_not_exist_msg" "dir_is_writable dir not exist, _log_is_on" dir_is_writable "$path_not_exist"
-    test_status_output_match "$_failure" "$dir_not_exist_msg" "dir_is_writable dir not exist, _log_is_on, sudo" dir_is_writable "$path_not_exist" --sudo
+    test_status_output_match "$_failure" "$dir_not_exist_msg" "dir_is_writable dir not exist, _log_is_on" dir_is_writable "$_path_not_exist"
+    test_status_output_match "$_failure" "$dir_not_exist_msg" "dir_is_writable dir not exist, _log_is_on, sudo" dir_is_writable "$_path_not_exist" --sudo
     ### _log_is_off
-    test_status_output_match "$_failure" "$(regex_build_empty)" "dir_is_writable dir not exist, _log_is_off" dir_is_writable "$path_not_exist" --no-log
-    test_status_output_match "$_failure" "$(regex_build_empty)" "dir_is_writable dir not exist, _log_is_off, sudo" dir_is_writable "$path_not_exist" --no-log --sudo
+    test_status_output_match "$_failure" "$(regex_build_empty)" "dir_is_writable dir not exist, _log_is_off" dir_is_writable "$_path_not_exist" --no-log
+    test_status_output_match "$_failure" "$(regex_build_empty)" "dir_is_writable dir not exist, _log_is_off, sudo" dir_is_writable "$_path_not_exist" --no-log --sudo
 
     # == file_is_readable ==
     ## file readable
@@ -588,11 +606,11 @@ test_file_operations() {
     test_status_is "$_success" "file_is_readable file not readable, _log_is_off, sudo" file_is_readable "$file600" --no-log --sudo
     ## file not exist
     ### _log_is_on
-    test_status_output_match "$_failure" "$file_not_exist_msg" "file_is_readable file not exist, _log_is_on" file_is_readable "$path_not_exist"
-    test_status_output_match "$_failure" "$file_not_exist_msg" "file_is_readable file not exist, _log_is_on, sudo" file_is_readable "$path_not_exist" --sudo
+    test_status_output_match "$_failure" "$file_not_exist_msg" "file_is_readable file not exist, _log_is_on" file_is_readable "$_path_not_exist"
+    test_status_output_match "$_failure" "$file_not_exist_msg" "file_is_readable file not exist, _log_is_on, sudo" file_is_readable "$_path_not_exist" --sudo
     ### _log_is_off
-    test_status_output_match "$_failure" "$(regex_build_empty)" "file_is_readable file not exist, _log_is_off" file_is_readable "$path_not_exist" --no-log
-    test_status_output_match "$_failure" "$(regex_build_empty)" "file_is_readable file not exist, _log_is_off, sudo" file_is_readable "$path_not_exist" --no-log --sudo
+    test_status_output_match "$_failure" "$(regex_build_empty)" "file_is_readable file not exist, _log_is_off" file_is_readable "$_path_not_exist" --no-log
+    test_status_output_match "$_failure" "$(regex_build_empty)" "file_is_readable file not exist, _log_is_off, sudo" file_is_readable "$_path_not_exist" --no-log --sudo
 
     # == file_is_writable == TODO: sudo
     ## file writable
@@ -607,13 +625,13 @@ test_file_operations() {
     test_status_is "$_success" "file_is_writable file not writable, _log_is_off, sudo" file_is_writable "$file600" --no-log --sudo
     ## file not exist
     ### _log_is_on
-    test_status_output_match "$_failure" "$file_not_exist_msg" "file_is_writable file not exist, _log_is_on" file_is_writable "$path_not_exist"
-    test_status_output_match "$_failure" "$file_not_exist_msg" "file_is_writable file not exist, _log_is_on, sudo" file_is_writable "$path_not_exist" --sudo
+    test_status_output_match "$_failure" "$file_not_exist_msg" "file_is_writable file not exist, _log_is_on" file_is_writable "$_path_not_exist"
+    test_status_output_match "$_failure" "$file_not_exist_msg" "file_is_writable file not exist, _log_is_on, sudo" file_is_writable "$_path_not_exist" --sudo
     ### _log_is_off
-    test_status_output_match "$_failure" "$(regex_build_empty)" "file_is_writable file not exist, _log_is_off" file_is_writable "$path_not_exist" --no-log
-    test_status_output_match "$_failure" "$(regex_build_empty)" "file_is_writable file not exist, _log_is_off, sudo" file_is_writable "$path_not_exist" --no-log --sudo
+    test_status_output_match "$_failure" "$(regex_build_empty)" "file_is_writable file not exist, _log_is_off" file_is_writable "$_path_not_exist" --no-log
+    test_status_output_match "$_failure" "$(regex_build_empty)" "file_is_writable file not exist, _log_is_off, sudo" file_is_writable "$_path_not_exist" --no-log --sudo
 
-    # == path_create (--sudo) ==
+    # == path_create == TODO: sudo
     ## dir not exists
     local new_dir="$tmp_dir/path_create"
     test_status_output_match "$_success" "Directory path \'$new_dir\' created." "path_create: dir not exists" path_create "$new_dir"
@@ -622,54 +640,162 @@ test_file_operations() {
     ##  path is a file
     test_status_output_match "$_failure" "$(regex_build_all "The path \'file.txt\' is a file." "Cannot create directory path for a file.")" "path_create: path is a file" path_create "file.txt"
 
-    # == file_clear  (--sudo) ==
+    # == file_clear == TODO: sudo
     ## file does not exist
+    test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "Cannot clear the file \'$_path_not_exist\'.")" "file_clear: file does not exist" file_clear "$_path_not_exist"
     ## file is not writable
+    test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_writable_msg $file600)" "Cannot clear the file \'$file600\'.")" "file_clear: file is not writable" file_clear "$file600"
     ## file is writable
+    #TODO
 
-    # == file_str_append (--sudo) ==
+    # == file_str_append == TODO: sudo
     ## file does not exist
+    test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "Cannot append to the file \'$_path_not_exist\'.")" "file_str_append: file does not exist" file_str_append "$_path_not_exist" "Some content"
     ## file is not writable
+    test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_writable_msg $file600)" "Cannot append to the file \'$file600\'.")" "file_str_append: file is not writable" file_str_append "$file600" "Some content"
     ## file is writable
+    #TODO
 
-    # == file_str_replace (--sudo) ==
-
-    # == file_str_contains ==
-    # TODO: check implementation
-
-    # == file_backup (--sudo) ==
+    # == file_str_replace == TODO: sudo
     ## file does not exist
-    ## file exists / file is not readable ?
+    test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "Cannot modify the file \'$_path_not_exist\'.")" "file_str_replace: file does not exist" file_str_replace "$_path_not_exist" "old/new"
+    ## file is not writable
+    test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_writable_msg $file600)" "Cannot modify the file \'$file600\'.")" "file_str_replace: file is not writable" file_str_replace "$file600" "old/new"
+    ## file is writable
+    #TODO
 
-    # == file_content_write (--sudo --no-log) ==
+    # == file_str_contains == TODO: sudo
+    #TODO
+
+    # == file_backup == TODO: sudo
+    ## file does not exist
+    test_status_output_match "$_failure" "Nothing to backup. The file \'$_path_not_exist\' does not exist." "file_backup: file does not exist" file_backup "$_path_not_exist"
+    #TODO: find a way to match the backup file was not created
+    ## file is not readable
+    # BUG: backup is created with sudo
+    #test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_readable_msg $file600)" "Cannot backup the file \'$file600\'.")" "file_backup: file is not readable" file_backup "$file600"
+    ##  file exists and readable
+    test_status_output_match "$_success" "Backup created: $file664.bkp-" "file_backup: file exists and readable" file_backup "$file664"
+    #TODO: find a way to match the backup file created
+    #test_status_is "$_success" "file_backup: backup file created" path_exists "${file664}.bkp-*"
+
+    # == file_content_write (--no-log) == TODO: sudo
     ## file does not exist
     ## file is not writable
     ## file is writable and blank content
     ## file is writable and non-blank content
+    ## file exists - overwrite
+        #TODO
+        ## file exists - do not overwrite
+        #TODO
+        ## on error (not writable dir)
+        #TODO
 
-    # == file_create_with_content (--sudo) ==
+    # == file_create_with_content == TODO: sudo
     ## file does not exist
-    ## file exists
-    ## ?
+    local new_file="$tmp_dir/file_create_with_content"
+    test_status_output_match "$_success" "The file \'$new_file\' was created." "file_create_with_content: file does not exist" file_create_with_content "$new_file" "$_target"
+    #TODO: create a helper function to read file content
+    test_status_is "$_success" "file_create_with_content: file content correct" grep -Fxq "$_target" "$new_file"
 
-    # == file_create_empty (--sudo) ==
+    # == file_create_empty ==  TODO: sudo
     ## file does not exist
-    ## file exists
-    ## ?
-
-    # == file_from_template (--sudo) ==
+    local empty_file="$tmp_dir/file_create_empty"
+    test_status_output_match "$_success" "The file \'$empty_file\' was created." "file_create_empty: file does not exist" file_create_empty "$empty_file"
+    #TODO: test if file is empty
+    test_status_is "$_success" "file_create_empty: file is empty" test -z "$(<$empty_file)"
+ 
+    # == file_from_template ==  TODO: sudo
     ## template does not exist
+    local destination="$tmp_dir/not_created"
+    test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "The template file \'$_path_not_exist\' cannot be used to create files.")" "file_from_template: template does not exist" file_from_template "$_path_not_exist" "$destination"
+    test_status_is "$_failure" "file_from_template: template does not exist, target file not created" path_exists "$destination"
     ## template is not readable
+    local destination="$tmp_dir/not_created"
+    test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_readable_msg $file600)" "The template file \'$file600\' cannot be used to create files.")" "file_from_template: template is not readable" file_from_template "$file600" "$destination"
+    test_status_is "$_failure" "file_from_template: template does not exist, target file not created" path_exists "$destination"
     ## file does not exist
-    ## file exists
-    ## ?
+    local new_file="$tmp_dir/file_from_template"
+    test_status_output_match "$_success" "The file \'$new_file\' was created." "file_from_template: file does not exist" file_from_template "$_target_file" "$new_file"
+    #TODO: create a helper function to read file content
+    test_status_is "$_success" "file_create_with_content: file content correct" grep -Fxq "$_target" "$new_file"
 
-    # == file_make_executable (--sudo) ==
+    # == file_make_executable == TODO: sudo
     ## file does not exist
+    test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "The file '$_path_not_exist' cannot be made executable.")" "file_make_executable: file does not exist" file_make_executable "$_path_not_exist"
     ## file is not writable
+    test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_writable_msg $file600)" "The file '$file600' cannot be made executable.")" "file_make_executable: file is not writable" file_make_executable "$file600"
+    test_status_is "$_failure" "file_make_executable: file is executable" test -x "$file600"
     ## file is writable
+    local new_file="$tmp_dir/file_make_executable"
+    touch "$new_file"
+    test_status_output_match "$_success" "The file '$new_file' is now executable." "file_make_executable: file is writable" file_make_executable "$new_file"
+    #TODO: create a helper function to test if file is executable
+    test_status_is "$_success" "file_make_executable: file is executable" test -x "$new_file"
 
-    # == file_copy (--sudo) ==
+    # == file_copy == TODO: sudo
+    ## file does not exist
+    local destination="$tmp_dir/not_copied"
+    test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "The file '$_path_not_exist' cannot be copied.")" "file_copy: file does not exist" file_copy "$_path_not_exist" "$destination"
+    test_status_is "$_failure" "file_copy: file does not exist, target file not created" path_exists "$destination"
+    ## file is not readable
+    local destination="$tmp_dir/not_copied"
+    test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_readable_msg $file600)" "The file '$file600' cannot be copied.")" "file_copy: file is not readable" file_copy "$file600" "$destination"
+    test_status_is "$_failure" "file_copy: file is not readable, target file not created" path_exists "$destination"
+    ### dest is not writable
+    #TODO: implement
+    # local destination="$dir700/not_copied"
+    # test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_writable_msg $dir700)" "The destination path '$destination' is not writable.")" "file_copy: dest is not writable" file_copy "$file664" "$destination"
+    # test_status_is "$_failure" "file_copy: dest is not writable, target file not created" path_exists "$destination"
+
+    ### dest does not exist but parent dir is writable
+    local destination="$tmp_dir/file_copy/"
+    test_status_output_match "$_success" "The file was copied to $destination." "file_copy: dest does not exist but parent dir is writable" file_copy "$file664" "$destination"
+    test_status_is "$_success" "file_copy: dest does not exist but parent dir is writable, target file created" path_exists "${destination}file664"
+    ### dest exists and is writable
+    test_status_output_match "$_success" "The file was copied to $destination." "file_copy: dest does not exist but parent dir is writable" file_copy "$_target_file" "$destination"
+    test_status_is "$_success" "file_copy: dest does not exist but parent dir is writable, target file created" path_exists "${destination}target_file"
+    ## dest is a file
+    local destination="$tmp_dir/file_copy/new_file"
+    test_status_output_match "$_success" "The file was copied to $destination." "file_copy: dest is a file" file_copy "$_target_file" "$destination"
+    test_status_is "$_success" "file_copy: dest is a file, target file created" path_exists "$destination"
+
+    # == file_move == TODO: sudo
+    ## file does not exist
+    local destination="$tmp_dir/not_moved"
+    test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "The file '$_path_not_exist' cannot be moved.")" "file_move: file does not exist" file_move "$_path_not_exist" "$destination"
+    test_status_is "$_failure" "file_move: file does not exist, target file not created" path_exists "$destination"
+    ## file is not readable
+    local destination="$tmp_dir/not_moved"
+    test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_readable_msg $file600)" "The file '$file600' cannot be moved.")" "file_move: file is not readable" file_move "$file600" "$destination"
+    test_status_is "$_failure" "file_move: file is not readable, target file not created" path_exists "$destination"
+    test_status_is "$_success" "file_move: original file exist" path_exists "$file600"
+    ### dest is not writable
+    #TODO: implement
+    ### dest does not exist but parent dir is writable
+    local destination="$tmp_dir/file_move/"
+    local destination_path="${destination}move1"
+    local original_file="$tmp_dir/move1"
+    touch "$original_file"
+    test_status_output_match "$_success" "The file was moved to $destination." "file_move: dest does not exist but parent dir is writable" file_move "$original_file" "$destination"
+    test_status_is "$_success" "file_move: dest does not exist but parent dir is writable, target file created" path_exists "$destination_path"
+    test_status_is "$_failure" "file_move: dest does not exist but parent dir is writable, original file not exist" path_exists "$original_file"
+    ### dest exists and is writable
+    local destination="$tmp_dir/file_move/move2"
+    local original_file="$tmp_dir/move2"
+    touch "$original_file"
+    test_status_output_match "$_success" "The file was moved to $destination." "file_move: dest exists and is writable" file_move "$original_file" "$destination"
+    test_status_is "$_success" "file_move: dest exists and is writable, target file created" path_exists "$destination"
+    test_status_is "$_failure" "file_move: dest exists and is writable, original file not exist" path_exists "$original_file"
+    ## dest is a file
+    local destination="$tmp_dir/file_move/dest_file"
+    local original_file="$tmp_dir/move3"
+    touch "$original_file"
+    test_status_output_match "$_success" "The file was moved to $destination." "file_move: dest is a file" file_move "$original_file" "$destination"
+    test_status_is "$_success" "file_move: dest is a file, target file created" path_exists "$destination"
+    test_status_is "$_failure" "file_move: dest is a file, original file not exist" path_exists "$original_file"
+
+    # == file_overwrite == TODO: sudo
     ## file does not exist
     ## file is not readable
     ## file is readable
@@ -679,39 +805,39 @@ test_file_operations() {
     ### dest is not writable
     ### dest is writable
 
-    # == file_move (--sudo) ==
+    # == file_delete == TODO: sudo
     ## file does not exist
-    ## file is not readable
-    ## file is readable
-    ## dest is a file
-    ## dest is a dir
-    ### dest does not exist
-    ### dest is not writable
-    ### dest is writable
+    test_status_output_match "$_failure" "$file_not_exist_msg" "file_delete: file does not exist" file_delete "$_path_not_exist"
+    ## file is not writable
+    #TODO: implement
+    ## no ask
+    local target="$tmp_dir/file_delete_no_ask"
+    touch "$target"
+    test_status_is "$_success" "file_delete: no ask" file_delete "$target" --no-ask
+    test_status_is "$_failure" "file_delete: no ask, file not exist" path_exists "$target"
+    ## ask - proceed
+    #TODO
+    ## ask - cancel
+    #TODO
 
-    # == file_overwrite (--sudo) ==
-    ## file does not exist
-    ## file is not readable
-    ## file is readable
-    ## dest is a file
-    ## dest is a dir
-    ### dest does not exist
-    ### dest is not writable
-    ### dest is writable
-
-    # == file_delete (--sudo --ask) ==
-    ## file does not exist
-    ## file is not writable ?
-    ## file is writable proceed
-    ## file is writable cancel
-
-    # == dir_delete_recursive (--sudo --ask) ==
+    # == dir_delete_recursive == TODO: sudo
     ## dir does not exist
-    ## dir is not writable ?
-    ## dir is writable proceed
-    ## dir is writable cancel
+    test_status_output_match "$_failure" "Nothing to delete. The directory '$_path_not_exist' does not exist." "dir_delete: dir does not exist" dir_delete_recursive "$_path_not_exist"
+    ## dir is not writable
+    #TODO: Implement
+    ## no ask
+    local target="$tmp_dir/dir_delete_no_ask"
+    mkdir "$target"
+    touch "$target/file1"
+    test_status_is "$_success" "dir_delete_recursive: no ask" dir_delete_recursive "$target" --no-ask
+    test_status_is "$_failure" "dir_delete_recursive: no ask, dir not exist" path_exists "$target"
+    ## ask - proceed
+    #TODO
+    ## ask - cancel
+    #TODO
 
-    rm -rf "$tmp_dir"
+    # Cleanup
+    cleanup
 }
 
 test_system_operations() {
@@ -721,8 +847,8 @@ test_system_operations() {
     test_status_is "$_failure" "command_exists: non-existing command" command_exists "badcmd"
 
     # source_if_exists
-    test_status_is "$_success" "source_if_exists: existing file" source_if_exists "data/file_exists"
-    test_status_is "$_failure" "source_if_exists: non-existing file" source_if_exists "/path/to/nonexistent/file"
+    test_status_is "$_success" "source_if_exists: existing file" source_if_exists "$_target_file"
+    test_status_is "$_failure" "source_if_exists: non-existing file" source_if_exists "$_path_not_exist"
 }
 
 test_system_info() {
@@ -1052,4 +1178,5 @@ fixtures=(
 )
 
 clear
+validate_script
 test_fixtures_run "Unit Tests" "${fixtures[@]}"
