@@ -1,5 +1,8 @@
 ## TODO
 
+test -z <> file_is_empty
+grep -Fxq <> file_content_is
+
 ## verify
 - file_str_contains : check implementation
 
@@ -9,6 +12,8 @@
 workflow:
 - steps execute out of order
 - auto run flow (like unit tests)
+
+file_content_write: file_is_writable
 
 sudo: tests are using sudo when they should not
 
@@ -27,7 +32,13 @@ prompt_proceed : display is weird
     - file exists
 
 ## ideas
-- error handling for all file methods
+-dir is empty
+- prompt to exit
+- all file methods consistent:
+    - error handling
+    - return status
+    - file/dir  exist, readable, writable validations
+    - sudo, log, ask
 - Loading 
 - find a better way to load the lib
 

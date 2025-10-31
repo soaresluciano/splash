@@ -190,11 +190,8 @@ show_keyvalue () {
 show_question () {
     local question="$1"
     local options="$2"
-    if is_not_empty "$options"; then
-        styled bold bright_blue "⯑ $question ($options)"
-    else
-        styled bold bright_blue "⯑ $question"
-    fi
+    local description="${question}${options:+ ($options)}"
+    styled bold bright_blue "🯄 $description"
 }
 
 show_test_result() {
@@ -432,11 +429,13 @@ path_is_file() {
     fi
 
     # Heuristic: inspect the final path component.
-    # - hidden names (start with '.') are treated as not-a-file
+    # If the path explicitly ends with a slash, treat it as a directory (not a file)
+    if [[ "$path" == */ ]]; then
+        return $_failure
+    fi
     # - otherwise, if the basename contains a dot (e.g. file.txt) we treat it as a file
     local name
     name=$(basename -- "$path")
-    [[ "$name" == .* ]] && return $_failure
     [[ "$name" == *.* ]] && return $_success
     return $_failure
 }
@@ -541,17 +540,44 @@ file_is_writable() {
     fi
 }
 
-# Creates the directory path for a given path if it doesn't exist
-# Usage: path_create "/path/to/mydirectory" [--sudo]
+# Checks if a file is empty (zero bytes)
+# Returns success if file is empty, failure if it isn't
+# Usage: if file_is_empty <filename>; then ... fi
 # Parameters:
-#   path: Full path to the directory whose parent directory path should be created
+#   filename: Path to the file to check
+file_is_empty() {
+    _parse_common_params "$@"
+    local filename="${_PARSED_ARGS[0]}"
+    _build_args file_exists "$filename" || {
+        show_error "The file '$filename' cannot be checked for emptiness."
+        return $_failure
+    }
+
+    if [ ! -s "$filename" ]; then
+        return $_success
+    else
+        return $_failure
+    fi
+}
+
+# Creates the directory path for a given path if it doesn't exist.
+# If a file path is provided (for example: "/path/to/file.txt"), the
+# function will use the file's parent directory (dirname) and create that
+# directory path instead.
+#
+# Usage:
+#   path_create "/path/to/mydirectory" [--sudo]
+#   path_create "/path/to/file.txt" [--sudo]  # will create /path/to
+#
+# Parameters:
+#   path: Full path to a directory or file. If a file path is given, the
+#         parent directory will be created.
 #   --sudo: Use sudo for directory creation - Optional boolean flag
 path_create() {
     _parse_common_params "$@"
     local path="${_PARSED_ARGS[0]}"
     if path_is_file "$path"; then
-        show_error "The path '$path' is a file. Cannot create directory path for a file."
-        return $_failure
+        path=$(dirname -- "$path")
     fi
 
     if ! dir_exists "$path" --no-log; then
@@ -563,11 +589,11 @@ path_create() {
 }
 
 # Clears the contents of a file (truncates to zero bytes)
-# Usage: file_clear <filename> [--sudo]
+# Usage: file_content_clear <filename> [--sudo]
 # Parameters:
 #   filename: Path to the file to clear
 #   --sudo: Use sudo for the file operation - Optional boolean flag
-file_clear() {
+file_content_clear() {
     _parse_common_params "$@"
     local filename="${_PARSED_ARGS[0]}"
     _build_args file_is_writable "$filename" || {
@@ -578,12 +604,12 @@ file_clear() {
 }
 
 # Appends a string to the end of a file
-# Usage: file_str_append <filename> <content> [--sudo]
+# Usage: file_content_append <filename> <content> [--sudo]
 # Parameters:
 #   filename: Path to the file to append to
 #   content: String content to append
 #   --sudo: Use sudo for the file operation - Optional boolean flag
-file_str_append() {
+file_content_append() {
     _parse_common_params "$@"
     local filename="${_PARSED_ARGS[0]}"
     local content="${_PARSED_ARGS[1]}"
@@ -596,16 +622,16 @@ file_str_append() {
 }
 
 # Replaces multiple search-replace pairs in a file using sed
-# Usage: file_str_replace <filename> <pair1> [pair2] [pair3] ... [--sudo]
+# Usage: file_content_replace <filename> <pair1> [pair2] [pair3] ... [--sudo]
 # Parameters:
 #   filename: Path to the file to modify
 #   pairs: Array of strings in format "search/replace" (slash-separated)
 #   --sudo: Use sudo for the file operations - Optional boolean flag
 # Examples:
-#   file_str_replace "config.txt" "old_value/new_value" "debug=success/debug=false"
-#   file_str_replace "system.conf" "localhost/production.server" "port=3000/port=8080"
-#   file_str_replace "/etc/hosts" "127.0.0.1/192.168.1.1" --sudo
-file_str_replace() {
+#   file_content_replace "config.txt" "old_value/new_value" "debug=success/debug=false"
+#   file_content_replace "system.conf" "localhost/production.server" "port=3000/port=8080"
+#   file_content_replace "/etc/hosts" "127.0.0.1/192.168.1.1" --sudo
+file_content_replace() {
     _parse_common_params "$@"
     local filename="${_PARSED_ARGS[0]}"
     local pairs=("${_PARSED_ARGS[@]:1}")
@@ -619,15 +645,43 @@ file_str_replace() {
     show_success "The $filename was processed with ${#pairs[@]} replacements."
 }
 
-file_str_contains() {
+# Checks if a file content is exactly equal to a specified string
+# Returns success if content is found, failure if it isn't
+# Usage: if file_content_is <filename> <content> [--sudo]; then ... fi
+#        Multiple lines are supported as well
+# Parameters:
+#   filename: Path to the file to check
+#   content: String content to search for
+#   --sudo: Use sudo for the file operation - Optional boolean flag
+file_content_is() {
     _parse_common_params "$@"
     local filename="${_PARSED_ARGS[0]}"
-    local substring="${_PARSED_ARGS[1]}"
+    local content="${_PARSED_ARGS[1]}"
     _build_args file_is_readable "$filename" || {
         show_error "The file '$filename' cannot be checked."
         return $_failure
     }
-    ${_SUDO_CMD}grep -qF "$substring" "$filename"
+    ${_SUDO_CMD}grep -zFxq -- "$content" "$filename"
+    return $?
+}
+
+# Checks if a file content matches a specified regex pattern
+# Returns success if a match is found, failure if it isn't
+# Usage: if file_content_matches <filename> <pattern> [--sudo]; then ... fi
+# Parameters:
+#   filename: Path to the file to check
+#   pattern: Regex pattern to search for
+#   --sudo: Use sudo for the file operation - Optional boolean flag
+file_content_matches() {
+    _parse_common_params "$@"
+    local filename="${_PARSED_ARGS[0]}"
+    local pattern="${_PARSED_ARGS[1]}"
+    _build_args file_is_readable "$filename" || {
+        show_error "The file '$filename' cannot be checked."
+        return $_failure
+    }
+    local grep_flags=$(_regex_build_grep_flags "$pattern")
+    ${_SUDO_CMD}grep -"$grep_flags" -- "$pattern" "$filename"
     return $?
 }
 
@@ -829,7 +883,7 @@ file_delete() {
         return $_failure
     }
     if _ask_is_on; then
-        ! prompt_proceed "You are about to delete the file '$filename'." || {
+        prompt_proceed "You are about to delete the file '$filename'." || {
             show_log "File deletion aborted."
             return $_failure
         }
@@ -854,7 +908,7 @@ dir_delete_recursive() {
         return $_failure
     }
     if _ask_is_on; then
-        ! prompt_proceed "You are about to delete the directory '$dir' and all its contents recursively." || {
+        prompt_proceed "You are about to delete the directory '$dir' and all its contents recursively." || {
             show_log "Directory deletion aborted."
             return $_failure
         }
@@ -1159,7 +1213,22 @@ contains_str() {
 
 # REGULAR EXPRESSIONS
 #==============================================================================
-
+# Builds grep flags based on regex pattern for multiline support
+# Usage: flags=$(_regex_build_grep_flags "(?s).*pattern.*")
+# Parameters:
+#   pattern: The Perl-compatible regex pattern to analyze
+# Returns: A string of grep flags
+_regex_build_grep_flags() {
+    local pattern="$1"
+    local grep_args;
+    # Detect multiline flag (?s) at start of pattern
+    if [[ "$pattern" == '(?s)'* ]]; then
+        grep_args="Pzo"
+    else
+        grep_args="Pq"
+    fi
+    printf '%s' "$grep_args"
+}
 
 # Performs a Perl-compatible regular expression match on a string
 # Returns success if the pattern matches the string, failure otherwise
@@ -1170,16 +1239,8 @@ contains_str() {
 regex_match() {
     local string="$1"
     local pattern="$2"
-
-    local grep_args;
-    # Detect multiline flag (?s) at start of pattern
-    if [[ "$pattern" == '(?s)'* ]]; then
-        grep_args="Pzo"
-    else
-        grep_args="Pq"
-    fi
-
-    printf '%s\n' "$string" | grep -"$grep_args" "$pattern" >/dev/null
+    local grep_flags=$(_regex_build_grep_flags "$pattern")
+    printf '%s\n' "$string" | grep -"$grep_flags" "$pattern" >/dev/null
     return $?
 }
 

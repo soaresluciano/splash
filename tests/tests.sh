@@ -5,6 +5,53 @@ _path_not_exist="path_not_exist"
 _target_file="data/target_file"
 _target="TEST-TARGET-STRING"
 
+_file_contains_line() {
+    # usage: file_contains_line <file> <exact-line>
+    # returns 0 if the exact line exists in file, non-zero otherwise
+    local file="$1"
+    local line="$2"
+    # suppress grep errors (e.g. file missing) and preserve exit code
+    grep -Fxq "$line" "$file" 2>/dev/null
+}
+
+_file_is_empty() {
+    local file="$1"
+    # behave like the inline test used previously
+    test -z "$(<"$file")"
+}
+
+_file_is_executable() {
+    local file="$1"
+    # behave like the inline test used previously
+    test -x "$file"
+}
+
+_files_equal() {
+    # usage: _files_equal <expected_file> <actual_file>
+    # returns 0 if files are identical, non-zero otherwise
+    local expected="$1"
+    local actual="$2"
+    diff -q "$expected" "$actual" >/dev/null 2>&1
+}
+
+_make_test_file() {
+    local file_path="$1"
+    touch "$file_path"
+    echo "$file_path"
+}
+
+_copy_target_file() {
+    local dest_path="$1"
+    cp "$_target_file" "$dest_path"
+    echo "$dest_path"
+}
+
+_make_test_dir() {
+    local dir_path="$1"
+    mkdir -p "$dir_path"
+    echo "$dir_path"
+}
+
 _stub_echo() {
     local result="$1"
     echo "$_target"
@@ -447,8 +494,7 @@ test_file_operations() {
 
     # == file_get_owner ==
     ## file exist
-    local my_file="${tmp_dir}/my_file"
-    touch "$my_file"
+    local my_file=$(_make_test_file "${tmp_dir}/my_file")
     test_status_output_match "$_success" "$current_user" "file_get_owner file exists" file_get_owner "$my_file"
     ## file not exist
     test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "File \'$_path_not_exist\' owner cannot be determined.")" "file_get_owner not exist" file_get_owner "$_path_not_exist"
@@ -535,10 +581,7 @@ test_file_operations() {
     test_status_is "$_failure" "path_is_file loose word" path_is_file "word"
     ### dir and loose word
     test_status_is "$_failure" "path_is_file dir and loose word" path_is_file "dir/word"
-    ### loose word starting with dot
-    test_status_is "$_failure" "path_is_file loose word starting with dot" path_is_file ".word"
 
-    ## path
     # == file_exists ==
     ## file exist
     test_status_is "$_success" "file_exists file exist" file_exists "$file664"
@@ -631,40 +674,83 @@ test_file_operations() {
     test_status_output_match "$_failure" "$(regex_build_empty)" "file_is_writable file not exist, _log_is_off" file_is_writable "$_path_not_exist" --no-log
     test_status_output_match "$_failure" "$(regex_build_empty)" "file_is_writable file not exist, _log_is_off, sudo" file_is_writable "$_path_not_exist" --no-log --sudo
 
+    # == file_is_empty ==
+    ## file not exist
+    test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "The file '$_path_not_exist' cannot be checked for emptiness.")" "file_is_empty file not exist" file_is_empty "$_path_not_exist"
+
+    ## file exist and is empty
+    local empty_file=$(_make_test_file "$tmp_dir/empty_file")
+    test_status_is "$_success" "file_is_empty file exist and is empty" file_is_empty "$empty_file"
+    ## file is not readable and empty
+    test_status_is "$_success" "file_is_empty file exist and is empty" file_is_empty "$file600"
+    ## file exist and is not empty
+    test_status_is "$_failure" "file_is_empty file exist and is not empty" file_is_empty "$_target_file"
+
+
     # == path_create == TODO: sudo
-    ## dir not exists
-    local new_dir="$tmp_dir/path_create"
-    test_status_output_match "$_success" "Directory path \'$new_dir\' created." "path_create: dir not exists" path_create "$new_dir"
     ## dir exists
     test_status_output_match "$_success" "$(regex_build_empty)" "path_create: path already exists" path_create "$tmp_dir"
+    ## dir not exists
+    local new_dir="$tmp_dir/path_create1"
+    test_status_output_match "$_success" "Directory path \'$new_dir\' created." "path_create: dir without trailing slash not exists" path_create "$new_dir"
+    test_status_is "$_success" "path_create: dir without trailing slash created" dir_exists "$new_dir"
+    ## dir not exists
+    local new_dir="$tmp_dir/path_create2/"
+    test_status_output_match "$_success" "Directory path \'$new_dir\' created." "path_create: dir with trailing slash not exists" path_create "$new_dir"
+    test_status_is "$_success" "path_create: dir with trailing slash created" dir_exists "$new_dir"
     ##  path is a file
-    test_status_output_match "$_failure" "$(regex_build_all "The path \'file.txt\' is a file." "Cannot create directory path for a file.")" "path_create: path is a file" path_create "file.txt"
+    local new_dir="$tmp_dir/path_create3"
+    local file_path="${new_dir}/some_file.txt"
+    test_status_output_match "$_success" "Directory path \'$new_dir\' created." "path_create: path is a file" path_create "$file_path"
+    test_status_is "$_success" "path_create: path is a file - dir created" dir_exists "$new_dir"
 
-    # == file_clear == TODO: sudo
+    # == file_content_clear == TODO: sudo
+    # sad path tests
     ## file does not exist
-    test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "Cannot clear the file \'$_path_not_exist\'.")" "file_clear: file does not exist" file_clear "$_path_not_exist"
+    test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "Cannot clear the file \'$_path_not_exist\'.")" "file_content_clear: file does not exist" file_content_clear "$_path_not_exist"
     ## file is not writable
-    test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_writable_msg $file600)" "Cannot clear the file \'$file600\'.")" "file_clear: file is not writable" file_clear "$file600"
+    test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_writable_msg $file600)" "Cannot clear the file \'$file600\'.")" "file_content_clear: file is not writable" file_content_clear "$file600"
+    
+    # happy path tests
     ## file is writable
+    local new_file=$(_copy_target_file "$tmp_dir/file_content_clear")
+    test_status_is "$_success" "file_content_clear: file is writable" file_content_clear "$new_file"
+    test_status_is "$_success" "file_content_clear: file is empty" _file_is_empty "$new_file"
+
+    # == file_content_append == TODO: sudo
+    # sad path tests
+    ## file does not exist
+    test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "Cannot append to the file \'$_path_not_exist\'.")" "file_content_append: file does not exist" file_content_append "$_path_not_exist" "Some content"
+
+    # happy path tests
+    ## file is not writable
+    test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_writable_msg $file600)" "Cannot append to the file \'$file600\'.")" "file_content_append: file is not writable" file_content_append "$file600" "Some content"
+    ## file is writable
+    local new_file=$(_copy_target_file "$tmp_dir/file_content_append")
+    test_status_output_match "$_success" "The content was appended to $new_file." "file_content_append: file is writable" file_content_append "$new_file" "$_target"
+    test_status_is "$_success" "file_content_append: file content correct" _file_contains_line "$new_file" "$_target$_target"
+
+    # == file_content_replace == TODO: sudo
+    # sad path tests
+    ## file does not exist
+    test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "Cannot modify the file \'$_path_not_exist\'.")" "file_content_replace: file does not exist" file_content_replace "$_path_not_exist" "old/new"
+    ## file is not writable
+    test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_writable_msg $file600)" "Cannot modify the file \'$file600\'.")" "file_content_replace: file is not writable" file_content_replace "$file600" "old/new"
+    
+    # happy path tests
+    ## file is writable
+    local expectation_file="data/str_replace_expected"
+    local template_file="data/str_replace"
+    local new_file="$tmp_dir/file_content_replace"
+    cp "$template_file" "$new_file"
+    local pairs=("OLD1/NEW1" "OLD2/NEW2" "OLD3/NEW3" "OLD4/NEW4")
+    test_status_output_match "$_success" "The $new_file was processed with ${#pairs[@]} replacements." "file_content_replace: file is writable" file_content_replace "$new_file" "${pairs[@]}"
+    test_status_is "$_success" "file_content_replace: file content correct" _files_equal "$expectation_file" "$new_file"
+
+    # == file_content_is == TODO: sudo
     #TODO
 
-    # == file_str_append == TODO: sudo
-    ## file does not exist
-    test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "Cannot append to the file \'$_path_not_exist\'.")" "file_str_append: file does not exist" file_str_append "$_path_not_exist" "Some content"
-    ## file is not writable
-    test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_writable_msg $file600)" "Cannot append to the file \'$file600\'.")" "file_str_append: file is not writable" file_str_append "$file600" "Some content"
-    ## file is writable
-    #TODO
-
-    # == file_str_replace == TODO: sudo
-    ## file does not exist
-    test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "Cannot modify the file \'$_path_not_exist\'.")" "file_str_replace: file does not exist" file_str_replace "$_path_not_exist" "old/new"
-    ## file is not writable
-    test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_writable_msg $file600)" "Cannot modify the file \'$file600\'.")" "file_str_replace: file is not writable" file_str_replace "$file600" "old/new"
-    ## file is writable
-    #TODO
-
-    # == file_str_contains == TODO: sudo
+    # == file_content_matches == TODO: sudo
     #TODO
 
     # == file_backup == TODO: sudo
@@ -680,161 +766,235 @@ test_file_operations() {
     #test_status_is "$_success" "file_backup: backup file created" path_exists "${file664}.bkp-*"
 
     # == file_content_write (--no-log) == TODO: sudo
-    ## file does not exist
+    # sad path test
     ## file is not writable
-    ## file is writable and blank content
-    ## file is writable and non-blank content
-    ## file exists - overwrite
-        #TODO
-        ## file exists - do not overwrite
-        #TODO
-        ## on error (not writable dir)
-        #TODO
+    # TODO: implement
+
+    # happy path tests
+    ## file not exist - non-blank content
+    local new_file="$tmp_dir/file_content_write.1"
+    test_status_output_match "$_success" "The content was written to $new_file." "file_content_write: file not exist - non-blank content" file_content_write "$new_file" "$_target"
+    test_status_is "$_success" "file_content_write: file not exist - non-blank content, file content correct" _file_contains_line "$new_file" "$_target"
+    ## file not exist - blank content
+    local new_file="$tmp_dir/file_content_write.2"
+    test_status_output_match "$_success" "The content was written to $new_file." "file_content_write: file not exist - blank content" file_content_write "$new_file" ""
+    test_status_is "$_success" "file_content_write: file not exist - blank content, file is empty" _file_is_empty "$new_file"
+    ## file exists - non-blank content
+    local content="Lorem ipsum dolor sit amet"
+    local new_file=$(_copy_target_file "$tmp_dir/file_content_write.3")
+    test_status_output_match "$_success" "The content was written to $new_file." "file_content_write: file exists - non-blank content" file_content_write "$new_file" "$content"
+    test_status_is "$_success" "file_content_write: file exists - non-blank content, file content correct" _file_contains_line "$new_file" "$content"
+    ## file exists - blank content
+    local new_file=$(_copy_target_file "$tmp_dir/file_content_write.4")
+    test_status_output_match "$_success" "The content was written to $new_file." "file_content_write: file exists - blank content" file_content_write "$new_file" ""
+    test_status_is "$_success" "file_content_write: file exists - blank content, file is empty" _file_is_empty "$new_file"
 
     # == file_create_with_content == TODO: sudo
     ## file does not exist
     local new_file="$tmp_dir/file_create_with_content"
     test_status_output_match "$_success" "The file \'$new_file\' was created." "file_create_with_content: file does not exist" file_create_with_content "$new_file" "$_target"
-    #TODO: create a helper function to read file content
-    test_status_is "$_success" "file_create_with_content: file content correct" grep -Fxq "$_target" "$new_file"
+    test_status_is "$_success" "file_create_with_content: file content correct" _file_contains_line "$new_file" "$_target"
 
     # == file_create_empty ==  TODO: sudo
     ## file does not exist
     local empty_file="$tmp_dir/file_create_empty"
     test_status_output_match "$_success" "The file \'$empty_file\' was created." "file_create_empty: file does not exist" file_create_empty "$empty_file"
-    #TODO: test if file is empty
-    test_status_is "$_success" "file_create_empty: file is empty" test -z "$(<$empty_file)"
- 
+    test_status_is "$_success" "file_create_empty: file is empty" _file_is_empty "$empty_file"
+
     # == file_from_template ==  TODO: sudo
+    # sad path tests
     ## template does not exist
-    local destination="$tmp_dir/not_created"
+    local destination="$tmp_dir/not.created"
     test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "The template file \'$_path_not_exist\' cannot be used to create files.")" "file_from_template: template does not exist" file_from_template "$_path_not_exist" "$destination"
     test_status_is "$_failure" "file_from_template: template does not exist, target file not created" path_exists "$destination"
     ## template is not readable
-    local destination="$tmp_dir/not_created"
+    local destination="$tmp_dir/not.created"
     test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_readable_msg $file600)" "The template file \'$file600\' cannot be used to create files.")" "file_from_template: template is not readable" file_from_template "$file600" "$destination"
     test_status_is "$_failure" "file_from_template: template does not exist, target file not created" path_exists "$destination"
+    
+    # happy path tests
     ## file does not exist
-    local new_file="$tmp_dir/file_from_template"
+    local new_file="$tmp_dir/file_from_template.test"
     test_status_output_match "$_success" "The file \'$new_file\' was created." "file_from_template: file does not exist" file_from_template "$_target_file" "$new_file"
-    #TODO: create a helper function to read file content
-    test_status_is "$_success" "file_create_with_content: file content correct" grep -Fxq "$_target" "$new_file"
+    test_status_is "$_success" "file_create_with_content: file content correct" _file_contains_line "$new_file" "$_target"
 
     # == file_make_executable == TODO: sudo
+    # sad path tests
     ## file does not exist
     test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "The file '$_path_not_exist' cannot be made executable.")" "file_make_executable: file does not exist" file_make_executable "$_path_not_exist"
     ## file is not writable
     test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_writable_msg $file600)" "The file '$file600' cannot be made executable.")" "file_make_executable: file is not writable" file_make_executable "$file600"
-    test_status_is "$_failure" "file_make_executable: file is executable" test -x "$file600"
+    test_status_is "$_failure" "file_make_executable: file is executable" _file_is_executable "$file600"
+    
+    # happy path tests
     ## file is writable
-    local new_file="$tmp_dir/file_make_executable"
-    touch "$new_file"
+    local new_file=$(_make_test_file "$tmp_dir/file_make_executable")
     test_status_output_match "$_success" "The file '$new_file' is now executable." "file_make_executable: file is writable" file_make_executable "$new_file"
-    #TODO: create a helper function to test if file is executable
-    test_status_is "$_success" "file_make_executable: file is executable" test -x "$new_file"
+    test_status_is "$_success" "file_make_executable: file is executable" _file_is_executable "$new_file"
 
     # == file_copy == TODO: sudo
+    # sad path tests
     ## file does not exist
-    local destination="$tmp_dir/not_copied"
+    local destination="$tmp_dir/not.copied"
     test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "The file '$_path_not_exist' cannot be copied.")" "file_copy: file does not exist" file_copy "$_path_not_exist" "$destination"
-    test_status_is "$_failure" "file_copy: file does not exist, target file not created" path_exists "$destination"
+    test_status_is "$_failure" "file_copy: file does not exist, file not copied" path_exists "$destination"
     ## file is not readable
-    local destination="$tmp_dir/not_copied"
+    local destination="$tmp_dir/not.copied"
     test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_readable_msg $file600)" "The file '$file600' cannot be copied.")" "file_copy: file is not readable" file_copy "$file600" "$destination"
-    test_status_is "$_failure" "file_copy: file is not readable, target file not created" path_exists "$destination"
-    ### dest is not writable
+    test_status_is "$_failure" "file_copy: file is not readable, file not copied" path_exists "$destination"
+    ## dest is not writable
     #TODO: implement
-    # local destination="$dir700/not_copied"
-    # test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_writable_msg $dir700)" "The destination path '$destination' is not writable.")" "file_copy: dest is not writable" file_copy "$file664" "$destination"
-    # test_status_is "$_failure" "file_copy: dest is not writable, target file not created" path_exists "$destination"
 
-    ### dest does not exist but parent dir is writable
-    local destination="$tmp_dir/file_copy/"
-    test_status_output_match "$_success" "The file was copied to $destination." "file_copy: dest does not exist but parent dir is writable" file_copy "$file664" "$destination"
-    test_status_is "$_success" "file_copy: dest does not exist but parent dir is writable, target file created" path_exists "${destination}file664"
-    ### dest exists and is writable
-    test_status_output_match "$_success" "The file was copied to $destination." "file_copy: dest does not exist but parent dir is writable" file_copy "$_target_file" "$destination"
-    test_status_is "$_success" "file_copy: dest does not exist but parent dir is writable, target file created" path_exists "${destination}target_file"
-    ## dest is a file
-    local destination="$tmp_dir/file_copy/new_file"
-    test_status_output_match "$_success" "The file was copied to $destination." "file_copy: dest is a file" file_copy "$_target_file" "$destination"
-    test_status_is "$_success" "file_copy: dest is a file, target file created" path_exists "$destination"
+    # happy path tests
+    ### dest is a dir that not exist
+    local filename=$(basename "$_target_file")
+    local destination="$tmp_dir/file_copy1/"
+    test_status_output_match "$_success" "The file was copied to $destination." "file_copy: dest is a dir that not exist" file_copy "$_target_file" "$destination"
+    test_status_is "$_success" "file_copy: dest is a dir that not exist, file copied" path_exists "${destination}${filename}"
+    ### dest is a dir that exists
+    local filename=$(basename "$_target_file")
+    local destination=$(_make_test_dir "$tmp_dir/file_copy2/")
+    test_status_output_match "$_success" "The file was copied to $destination." "file_copy: dest is a dir that exists" file_copy "$_target_file" "$destination"
+    test_status_is "$_success" "file_copy: dest is a dir that exists, file copied" path_exists "${destination}${filename}"
+    ## dest is a file and parent dir does not exist
+    local destination="$tmp_dir/file_copy3/file_copy3.test"
+    test_status_output_match "$_success" "The file was copied to $destination." "file_copy: dest is a file and parent dir does not exist" file_copy "$_target_file" "$destination"
+    test_status_is "$_success" "file_copy: dest is a file and parent dir does not exist, file copied" path_exists "$destination"
+    ## dest is a file and parent dir exists
+    local destination="$tmp_dir/file_copy4.test"
+    test_status_output_match "$_success" "The file was copied to $destination." "file_copy: dest is a file and parent dir exists" file_copy "$_target_file" "$destination"
+    test_status_is "$_success" "file_copy: dest is a file and parent dir exists, file copied" path_exists "$destination"
 
     # == file_move == TODO: sudo
+    # sad path tests
     ## file does not exist
-    local destination="$tmp_dir/not_moved"
+    local destination="$tmp_dir/not_moved.test"
     test_status_output_match "$_failure" "$(regex_build_all "$file_not_exist_msg" "The file '$_path_not_exist' cannot be moved.")" "file_move: file does not exist" file_move "$_path_not_exist" "$destination"
-    test_status_is "$_failure" "file_move: file does not exist, target file not created" path_exists "$destination"
+    test_status_is "$_failure" "file_move: file does not exist, dest file not exist" path_exists "$destination"
     ## file is not readable
-    local destination="$tmp_dir/not_moved"
+    local destination="$tmp_dir/not_moved.test"
     test_status_output_match "$_failure" "$(regex_build_all "$(_path_not_readable_msg $file600)" "The file '$file600' cannot be moved.")" "file_move: file is not readable" file_move "$file600" "$destination"
-    test_status_is "$_failure" "file_move: file is not readable, target file not created" path_exists "$destination"
+    test_status_is "$_failure" "file_move: file is not readable, dest file not exist" path_exists "$destination"
     test_status_is "$_success" "file_move: original file exist" path_exists "$file600"
     ### dest is not writable
     #TODO: implement
-    ### dest does not exist but parent dir is writable
-    local destination="$tmp_dir/file_move/"
-    local destination_path="${destination}move1"
-    local original_file="$tmp_dir/move1"
-    touch "$original_file"
-    test_status_output_match "$_success" "The file was moved to $destination." "file_move: dest does not exist but parent dir is writable" file_move "$original_file" "$destination"
-    test_status_is "$_success" "file_move: dest does not exist but parent dir is writable, target file created" path_exists "$destination_path"
-    test_status_is "$_failure" "file_move: dest does not exist but parent dir is writable, original file not exist" path_exists "$original_file"
-    ### dest exists and is writable
-    local destination="$tmp_dir/file_move/move2"
-    local original_file="$tmp_dir/move2"
-    touch "$original_file"
-    test_status_output_match "$_success" "The file was moved to $destination." "file_move: dest exists and is writable" file_move "$original_file" "$destination"
-    test_status_is "$_success" "file_move: dest exists and is writable, target file created" path_exists "$destination"
-    test_status_is "$_failure" "file_move: dest exists and is writable, original file not exist" path_exists "$original_file"
-    ## dest is a file
-    local destination="$tmp_dir/file_move/dest_file"
-    local original_file="$tmp_dir/move3"
-    touch "$original_file"
-    test_status_output_match "$_success" "The file was moved to $destination." "file_move: dest is a file" file_move "$original_file" "$destination"
-    test_status_is "$_success" "file_move: dest is a file, target file created" path_exists "$destination"
-    test_status_is "$_failure" "file_move: dest is a file, original file not exist" path_exists "$original_file"
 
+    # happy path tests
+    ## dest is a dir that does not exist
+    local original_file=$(_make_test_file "$tmp_dir/move1.test")
+    local destination="$tmp_dir/file_move1/"
+    test_status_output_match "$_success" "The file was moved to $destination." "file_move: dest is a dir that does not exist" file_move "$original_file" "$destination"
+    test_status_is "$_success" "file_move: dest is a dir that does not exist, dest file exist" path_exists "${destination}move1.test"
+    test_status_is "$_failure" "file_move: dest is a dir that does not exist, original file not exist" path_exists "$original_file"
+    ## dest is a dir that exists
+    local original_file=$(_make_test_file "$tmp_dir/move2.test")
+    local filename=$(basename "$original_file")
+    local destination=$(_make_test_dir "$tmp_dir/file_move2/")
+    test_status_output_match "$_success" "The file was moved to $destination." "file_move: dest is a dir that exists" file_move "$original_file" "$destination"
+    test_status_is "$_success" "file_move: dest is a dir that exists, dest file exists" path_exists "${destination}${filename}"
+    test_status_is "$_failure" "file_move: dest is a dir that exists, original file not exist" path_exists "$original_file"
+    ## dest is a file and parent dir does not exist
+    local original_file=$(_make_test_file "$tmp_dir/move3.test")
+    local dest_dir=$(_make_test_dir "$tmp_dir/file_move3/")
+    local destination="${dest_dir}move3.test"
+    test_status_output_match "$_success" "The file was moved to $destination." "file_move: dest is a file and parent dir does not exist" file_move "$original_file" "$destination"
+    test_status_is "$_success" "file_move: dest is a file and parent dir does not exist, dest file exists" path_exists "$destination"
+    test_status_is "$_failure" "file_move: dest is a file and parent dir does not exist, original file not exist" path_exists "$original_file"
+    ### dest is a file and parent dir and it exists
+    local destination="$tmp_dir/move2b.test"
+    local original_file=$(_make_test_file "$tmp_dir/move2.test")
+    test_status_output_match "$_success" "The file was moved to $destination." "file_move: dest is a file and parent dir and it exists" file_move "$original_file" "$destination"
+    test_status_is "$_success" "file_move: dest is a file and parent dir and it exists, dest file exists" path_exists "$destination"
+    test_status_is "$_failure" "file_move: dest is a file and parent dir and it exists, original file not exist" path_exists "$original_file"
+    
     # == file_overwrite == TODO: sudo
+    # sad path tests
     ## file does not exist
+    local new_file="$tmp_dir/file_overwrite.1"
+    test_status_output_match "$_failure" "$file_not_exist_msg" "file_overwrite: file does not exist" file_overwrite "$_path_not_exist" "$new_file"
     ## file is not readable
-    ## file is readable
-    ## dest is a file
-    ## dest is a dir
-    ### dest does not exist
-    ### dest is not writable
-    ### dest is writable
+    local new_file="$tmp_dir/file_overwrite.2"
+    test_status_output_match "$_failure" "$(_path_not_readable_msg $file600)" "file_overwrite: file is not readable" file_overwrite "$file600" "$new_file"
+    test_status_is "$_failure" "file_overwrite: file is not readable, target file not created" path_exists "$new_file"
+    ## dest file is not writable
+    #TODO: implement
+    ## dest dir is not writable
+    #TODO: implement
+
+    # happy path tests
+    ## dest is a dir that does not exist
+    local new_file="$tmp_dir/file_overwrite1/file_overwrite.1"
+    test_status_output_match "$_success" "The file was copied to $new_file." "file_overwrite: dest is a dir that does not exist" file_overwrite "$_target_file" "$new_file"
+    test_status_is "$_success" "file_overwrite: dest is a dir that does not exist, now file exists" file_exists "$new_file"
+    ## dest is a dir that exists
+    local filename=$(basename "$_target_file")
+    local new_dir=$(_make_test_dir "$tmp_dir/file_overwrite2/")
+    test_status_output_match "$_success" "The file was copied to $new_dir" "file_overwrite: dest is a dir that exists" file_overwrite "$_target_file" "$new_dir"
+    test_status_is "$_success" "file_overwrite: dest is a dir that exists, target file exists" file_exists "${new_dir}${filename}"
+    ## dest is a file in a dir that does not exist
+    local new_file="$tmp_dir/file_overwrite3/file_overwrite.3"
+    test_status_output_match "$_success" "The file was copied to $new_file." "file_overwrite: dest is a file in a dir that does not exist" file_overwrite "$_target_file" "$new_file"
+    test_status_is "$_success" "file_overwrite: dest is a file in a dir that does not exist, now file exists" file_exists "$new_file"
+    ## dest is a file that does not exist
+    local new_file="$tmp_dir/file_overwrite.4"
+    test_status_output_match "$_success" "The file was copied to $new_file." "file_overwrite: dest is a file that does not exist" file_overwrite "$_target_file" "$new_file"
+    test_status_is "$_success" "file_overwrite: dest is a file that does not exist, now file exists" file_exists "$new_file"
+    ## dest is a file that exists
+    local new_file=$(_make_test_file "$tmp_dir/file_overwrite.5")
+    test_status_output_match "$_success" "The file was copied to $new_file." "file_overwrite: dest is a file that exists" file_overwrite "$_target_file" "$new_file"
+    test_status_is "$_success" "file_overwrite: dest is a file that exists, target file content correct" _file_contains_line "$new_file" "$_target"
 
     # == file_delete == TODO: sudo
+    # sad path tests
     ## file does not exist
     test_status_output_match "$_failure" "$file_not_exist_msg" "file_delete: file does not exist" file_delete "$_path_not_exist"
     ## file is not writable
     #TODO: implement
+
+    # happy path tests
     ## no ask
-    local target="$tmp_dir/file_delete_no_ask"
-    touch "$target"
-    test_status_is "$_success" "file_delete: no ask" file_delete "$target" --no-ask
+    local target=$(_make_test_file "$tmp_dir/file_delete_no_ask.test")
+    test_status_is "$_success" "file_delete: no ask" file_delete "$target"
     test_status_is "$_failure" "file_delete: no ask, file not exist" path_exists "$target"
     ## ask - proceed
-    #TODO
+    local target=$(_make_test_file "$tmp_dir/file_delete_ask_proceed.test")
+    test_status_output_match "$_success" "$(regex_build_all "Do you want to proceed\? \(y\/N\)" "The file \'$target\' was deleted.")" "file_delete: ask proceed" run_autoinput "y" file_delete "$target" --ask
+    test_status_is "$_failure" "file_delete: ask proceed, file not exist" path_exists "$target"
     ## ask - cancel
-    #TODO
+    local target=$(_make_test_file "$tmp_dir/file_delete_ask_cancel.test")
+    test_status_output_match "$_failure" "$(regex_build_all "Do you want to proceed\? \(y\/N\)" "Operation cancelled by user." "File deletion aborted.")" "file_delete: ask cancel" run_autoinput "n" file_delete "$target" --ask
+    test_status_is "$_success" "file_delete: ask cancel, file exist" path_exists "$target"
 
     # == dir_delete_recursive == TODO: sudo
+    build_sample_dir_structure() {
+        local dir="$1"
+        local subtarget="$dir/subdir1/subsubdir1"
+        mkdir -p "$subtarget"
+        touch "$subtarget/file1"
+    }
+
+    # sad path tests
     ## dir does not exist
     test_status_output_match "$_failure" "Nothing to delete. The directory '$_path_not_exist' does not exist." "dir_delete: dir does not exist" dir_delete_recursive "$_path_not_exist"
     ## dir is not writable
     #TODO: Implement
+
+    # happy path tests
     ## no ask
-    local target="$tmp_dir/dir_delete_no_ask"
-    mkdir "$target"
-    touch "$target/file1"
-    test_status_is "$_success" "dir_delete_recursive: no ask" dir_delete_recursive "$target" --no-ask
+    local target="$tmp_dir/dir_delete_no_ask1"
+    build_sample_dir_structure "$target"
+    test_status_is "$_success" "dir_delete_recursive: no ask" dir_delete_recursive "$target"
     test_status_is "$_failure" "dir_delete_recursive: no ask, dir not exist" path_exists "$target"
     ## ask - proceed
-    #TODO
+    local target="$tmp_dir/dir_delete_ask_proceed"
+    build_sample_dir_structure "$target"
+    test_status_output_match "$_success" "$(regex_build_all "Do you want to proceed\? \(y\/N\)" "The directory \'$target\' was deleted.")" "dir_delete_recursive: ask proceed" run_autoinput "y" dir_delete_recursive "$target" --ask
+    test_status_is "$_failure" "dir_delete_recursive: ask proceed, dir not exist" path_exists "$target"
     ## ask - cancel
-    #TODO
+    local target="$tmp_dir/dir_delete_ask_cancel"
+    build_sample_dir_structure "$target"
+    test_status_output_match "$_failure" "$(regex_build_all "Do you want to proceed\? \(y\/N\)" "Operation cancelled by user." "Directory deletion aborted.")" "dir_delete_recursive: ask cancel" run_autoinput "n" dir_delete_recursive "$target" --ask
+    test_status_is "$_success" "dir_delete_recursive: ask cancel, dir exist" path_exists "$target"
 
     # Cleanup
     cleanup
@@ -1162,6 +1322,7 @@ test_flow() {
 }
 
 fixtures=(
+    validate_script
     test_helpers_sanity_check
     test_comparisons
     test_assertions
@@ -1178,5 +1339,4 @@ fixtures=(
 )
 
 clear
-validate_script
 test_fixtures_run "Unit Tests" "${fixtures[@]}"
